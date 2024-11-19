@@ -1,21 +1,37 @@
-# MCP servers ![NPM Version](https://img.shields.io/npm/v/%40modelcontextprotocol%2Fexample-servers)
+# PostgreSQL
 
-Example servers for the Model Context Protocol, to demonstrate the kinds of things you can do!
+A Model Context Protocol server that provides read-only access to PostgreSQL databases. This server enables LLMs to inspect database schemas and execute read-only queries.
 
-## Getting started
+## Components
 
-Install from npm:
+### Tools
 
-```sh
-npm install -g @modelcontextprotocol/servers
+- **query**
+  - Execute read-only SQL queries against the connected database
+  - Input: `sql` (string): The SQL query to execute
+  - All queries are executed within a READ ONLY transaction
+
+### Resources
+
+The server provides schema information for each table in the database:
+
+- **Table Schemas** (`postgres://<host>/<table>/schema`)
+  - JSON schema information for each table
+  - Includes column names and data types
+  - Automatically discovered from database metadata
+
+## Example Usage with the Desktop App
+
+To use this server with the Claude Desktop app, add the following configuration to the "mcpServers" section of your `claude_desktop_config.json`:
+
+```json
+"postgres": {
+  "command": "mcp-server-postgres",
+  "args": ["postgresql://localhost/mydb"],
+  "env": {
+    "HOME": "/Users/YOUR_USERNAME"
+  }
+}
 ```
 
-Then, the servers will be globally available on your PATH:
-
-```sh
-mcp-server-everything
-mcp-server-postgres
-# ...
-```
-
-Each server will operate differently. See the READMEs within [src](src/) for more information.
+Replace `/mydb` with your database name and `YOUR_USERNAME` with your system username.
