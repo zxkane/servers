@@ -269,10 +269,19 @@ async function handleToolCall(name: string, args: any): Promise<{ toolResult: Ca
   }
 }
 
-const server = new Server({
-  name: "example-servers/puppeteer",
-  version: "0.4.0",
-});
+const server = new Server(
+  {
+    name: "example-servers/puppeteer",
+    version: "0.1.0",
+  },
+  {
+    capabilities: {
+      resources: {},
+      tools: {},
+    },
+  },
+);
+
 
 // Setup request handlers
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
