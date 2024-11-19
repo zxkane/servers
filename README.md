@@ -1,4 +1,4 @@
-# Example MCP servers ![NPM Version](https://img.shields.io/npm/v/%40modelcontextprotocol%2Fexample-servers)
+# MCP servers ![NPM Version](https://img.shields.io/npm/v/%40modelcontextprotocol%2Fexample-servers)
 
 Example servers for the Model Context Protocol, to demonstrate the kinds of things you can do!
 
@@ -7,10 +7,10 @@ Example servers for the Model Context Protocol, to demonstrate the kinds of thin
 Install from npm:
 
 ```sh
-npm install -g @modelcontextprotocol/example-servers
+npm install -g @modelcontextprotocol/servers
 ```
 
-Then, the example servers will be globally available on your PATH:
+Then, the servers will be globally available on your PATH:
 
 ```sh
 mcp-server-everything
