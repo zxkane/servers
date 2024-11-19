@@ -17,6 +17,7 @@
     "publish-all": "npm publish --workspaces --access public && npm publish --access public"
   },
   "dependencies": {
+    "@modelcontextprotocol/server-duckduckgo": "*",
     "@modelcontextprotocol/server-everything": "*",
     "@modelcontextprotocol/server-gdrive": "*",
     "@modelcontextprotocol/server-postgres": "*",
