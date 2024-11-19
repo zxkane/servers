@@ -13,7 +13,8 @@
   "files": [],
   "scripts": {
     "build": "npm run build --workspaces",
-    "watch": "npm run watch --workspaces"
+    "watch": "npm run watch --workspaces",
+    "publish-all": "npm publish --workspaces --access public && npm publish --access public"
   },
   "dependencies": {
     "@modelcontextprotocol/server-everything": "*",
