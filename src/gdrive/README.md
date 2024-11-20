@@ -15,7 +15,7 @@ This MCP server integrates with Google Drive to allow listing, reading, and sear
 
 The server provides access to Google Drive files:
 
-- **Files** (`gdrive://<file_id>`)
+- **Files** (`gdrive:///<file_id>`)
   - Supports all file types
   - Google Workspace files are automatically exported:
     - Docs → Markdown

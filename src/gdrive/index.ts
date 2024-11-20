@@ -44,7 +44,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 
   return {
     resources: files.map((file) => ({
-      uri: `gdrive://${file.id}`,
+      uri: `gdrive:///${file.id}`,
       mimeType: file.mimeType,
       name: file.name,
     })),
@@ -53,7 +53,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 });
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const fileId = request.params.uri.replace("gdrive://", "");
+  const fileId = request.params.uri.replace("gdrive:///", "");
 
   // First get file metadata to check mime type
   const file = await drive.files.get({
@@ -150,7 +150,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "search") {
     const userQuery = request.params.arguments?.query as string;
-    const escapedQuery = userQuery.replace(/'/g, "\\'");
+    const escapedQuery = userQuery.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const formattedQuery = `fullText contains '${escapedQuery}'`;
     
     const res = await drive.files.list({
