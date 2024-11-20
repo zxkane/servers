@@ -144,8 +144,12 @@ async function getDefaultBranchSHA(
   return data.object.sha;
 }
 
-async function getFileContents(owner: string, repo: string, path: string): Promise<GitHubContent> {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+async function getFileContents(owner: string, repo: string, path: string, branch?: string): Promise<GitHubContent> {
+  let url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  if (branch) {
+    url += `?ref=${branch}`;
+  }
+
   const response = await fetch(url, {
     headers: {
       "Authorization": `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
@@ -155,7 +159,8 @@ async function getFileContents(owner: string, repo: string, path: string): Promi
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.statusText}`);
+    const errorData = await response.text();
+    throw new Error(`GitHub API error (${response.status}): ${errorData}`);
   }
 
   const data = await response.json() as GitHubContent;
@@ -230,14 +235,33 @@ async function createOrUpdateFile(
   path: string,
   content: string,
   message: string,
+  branch: string,
   sha?: string
 ): Promise<GitHubCreateUpdateFileResponse> {
+  // Properly encode content to base64
+  const encodedContent = Buffer.from(content).toString('base64');
+
+  let currentSha = sha;
+  if (!currentSha) {
+    // Try to get current file SHA if it exists in the specified branch
+    try {
+      const existingFile = await getFileContents(owner, repo, path, branch);
+      if (!Array.isArray(existingFile)) {
+        currentSha = existingFile.sha;
+      }
+    } catch (error) {
+      // File doesn't exist in this branch, which is fine for creation
+      console.error('Note: File does not exist in branch, will create new file');
+    }
+  }
+
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   
   const body = {
     message,
-    content: Buffer.from(content).toString('base64'),
-    sha
+    content: encodedContent,
+    branch,
+    ...(currentSha ? { sha: currentSha } : {})
   };
 
   const response = await fetch(url, {
@@ -252,7 +276,8 @@ async function createOrUpdateFile(
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.statusText}`);
+    const errorData = await response.text();
+    throw new Error(`GitHub API error (${response.status}): ${errorData}`);
   }
 
   return await response.json() as GitHubCreateUpdateFileResponse;
@@ -435,6 +460,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
+        name: "create_or_update_file",
+        description: "Create or update a single file in a GitHub repository",
+        inputSchema: {
+          type: "object",
+          properties: {
+            owner: {
+              type: "string",
+              description: "Repository owner (username or organization)"
+            },
+            repo: {
+              type: "string",
+              description: "Repository name"
+            },
+            path: {
+              type: "string",
+              description: "Path where to create/update the file"
+            },
+            content: {
+              type: "string",
+              description: "Content of the file"
+            },
+            message: {
+              type: "string",
+              description: "Commit message"
+            },
+            branch: {
+              type: "string",
+              description: "Branch to create/update the file in"
+            },
+            sha: {
+              type: "string",
+              description: "SHA of the file being replaced (required when updating existing files)"
+            }
+          },
+          required: ["owner", "repo", "path", "content", "message", "branch"]
+        }
+      },      
+      {
         name: "search_repositories",
         description: "Search for GitHub repositories",
         inputSchema: {
@@ -505,40 +568,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
-        name: "create_or_update_file",
-        description: "Create or update a single file in a GitHub repository",
-        inputSchema: {
-          type: "object",
-          properties: {
-            owner: {
-              type: "string",
-              description: "Repository owner (username or organization)"
-            },
-            repo: {
-              type: "string",
-              description: "Repository name"
-            },
-            path: {
-              type: "string",
-              description: "Path where to create/update the file"
-            },
-            content: {
-              type: "string",
-              description: "Content of the file"
-            },
-            message: {
-              type: "string",
-              description: "Commit message"
-            },
-            sha: {
-              type: "string",
-              description: "SHA of the file being replaced (required when updating existing files)"
-            }
-          },
-          required: ["owner", "repo", "path", "content", "message"]
-        }
-      },
-      {
         name: "push_files",
         description: "Push multiple files to a GitHub repository in a single commit",
         inputSchema: {
@@ -580,37 +609,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             }
           },
           required: ["owner", "repo", "branch", "files", "message"]
-        }
-      },
-      {
-        name: "open_in_browser",
-        description: "Open a GitHub repository, file, issue, or pull request in the browser",
-        inputSchema: {
-          type: "object",
-          properties: {
-            owner: {
-              type: "string",
-              description: "Repository owner (username or organization)"
-            },
-            repo: {
-              type: "string",
-              description: "Repository name"
-            },
-            type: {
-              type: "string",
-              enum: ["repository", "file", "issue", "pull_request"],
-              description: "Type of resource to open"
-            },
-            path: {
-              type: "string",
-              description: "Path to the file (only for type='file')"
-            },
-            number: {
-              type: "number",
-              description: "Issue or PR number (only for type='issue' or type='pull_request')"
-            }
-          },
-          required: ["owner", "repo", "type"]
         }
       },
       {
@@ -826,29 +824,55 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (request.params.name === "get_file_contents") {
-    const { owner, repo, path } = request.params.arguments as {
+    if (!request.params.arguments) {
+      throw new Error("Arguments are required");
+    }
+  
+    const args = request.params.arguments as {
       owner: string;
       repo: string;
       path: string;
+      branch?: string;
     };
-
-    const contents = await getFileContents(owner, repo, path);
+  
+    const contents = await getFileContents(args.owner, args.repo, args.path, args.branch);
     return { toolResult: contents };
   }
-
+  
   if (request.params.name === "create_or_update_file") {
-    const { owner, repo, path, content, message, sha } = request.params.arguments as {
+    if (!request.params.arguments) {
+      throw new Error("Arguments are required");
+    }
+  
+    const args = request.params.arguments as {
       owner: string;
       repo: string;
       path: string;
       content: string;
       message: string;
+      branch: string;
       sha?: string;
     };
-
-    const result = await createOrUpdateFile(owner, repo, path, content, message, sha);
-    return { toolResult: result };
+  
+    try {
+      const result = await createOrUpdateFile(
+        args.owner,
+        args.repo,
+        args.path,
+        args.content,
+        args.message,
+        args.branch,
+        args.sha
+      );
+      return { toolResult: result };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create/update file: ${error.message}`);
+      }
+      throw error;
+    }
   }
+
 
   if (request.params.name === "push_files") {
     const { owner, repo, branch, files, message } = request.params.arguments as {
@@ -862,40 +886,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const result = await pushFiles(owner, repo, branch, files, message);
     return { toolResult: result };
   }
-
-
-if (request.params.name === "open_in_browser") {
-  const { owner, repo, type, path, number } = request.params.arguments as {
-    owner: string;
-    repo: string;
-    type: "repository" | "file" | "issue" | "pull_request";
-    path?: string;
-    number?: number;
-  };
-
-  let url: string;
-  switch (type) {
-    case "repository":
-      url = `https://github.com/${owner}/${repo}`;
-      break;
-    case "file":
-      if (!path) throw new Error("Path is required for file URLs");
-      url = `https://github.com/${owner}/${repo}/blob/main/${path}`;
-      break;
-    case "issue":
-      if (!number) throw new Error("Number is required for issue URLs");
-      url = `https://github.com/${owner}/${repo}/issues/${number}`;
-      break;
-    case "pull_request":
-      if (!number) throw new Error("Number is required for pull request URLs");
-      url = `https://github.com/${owner}/${repo}/pull/${number}`;
-      break;
-    default:
-      throw new Error(`Invalid type: ${type}`);
-  }
-
-  return { toolResult: { url } };
-}
 
 if (request.params.name === "create_issue") {
   if (!request.params.arguments) {
