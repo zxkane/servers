@@ -35,11 +35,6 @@ interface ListDirectoryArgs {
   path: string;
 }
 
-interface DeleteFileArgs {
-  path: string;
-  recursive?: boolean;
-}
-
 interface MoveFileArgs {
   source: string;
   destination: string;
@@ -211,30 +206,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "delete_file",
-        description:
-          "Remove files or directories from the file system. Can handle both individual " +
-          "files and directories. For directories, you can specify recursive deletion to " +
-          "remove all contents. Use with extreme caution as deletions are permanent and " +
-          "cannot be undone.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description: "Path of the file or directory to delete",
-            },
-            recursive: {
-              type: "boolean",
-              description:
-                "If true, recursively delete directories and their contents. Required for non-empty directories.",
-              default: false,
-            },
-          },
-          required: ["path"],
-        },
-      },
-      {
         name: "move_file",
         description:
           "Move or rename files and directories. Can move files between directories " +
@@ -393,18 +364,6 @@ function isListDirectoryArgs(args: unknown): args is ListDirectoryArgs {
   );
 }
 
-function isDeleteFileArgs(args: unknown): args is DeleteFileArgs {
-  const deleteArgs = args as DeleteFileArgs;
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    typeof deleteArgs.path === "string" &&
-    (deleteArgs.recursive === undefined ||
-      typeof deleteArgs.recursive === "boolean")
-  );
-}
-
 function isMoveFileArgs(args: unknown): args is MoveFileArgs {
   return (
     typeof args === "object" &&
@@ -503,27 +462,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           .join("\n");
         return {
           content: [{ type: "text", text: formatted }],
-        };
-      }
-
-      case "delete_file": {
-        if (!isDeleteFileArgs(args)) {
-          throw new Error("Invalid arguments for delete_file");
-        }
-        const stats = await fs.stat(args.path);
-        if (stats.isDirectory()) {
-          if (args.recursive) {
-            await fs.rm(args.path, { recursive: true });
-          } else {
-            await fs.rmdir(args.path);
-          }
-        } else {
-          await fs.unlink(args.path);
-        }
-        return {
-          content: [
-            { type: "text", text: `Successfully deleted ${args.path}` },
-          ],
         };
       }
 

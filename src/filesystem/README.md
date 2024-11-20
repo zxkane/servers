@@ -44,13 +44,6 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
   - List directory contents with [FILE] or [DIR] prefixes
   - Input: `path` (string)
 
-- **delete_file**
-  - Remove files or directories
-  - Inputs:
-    - `path` (string)
-    - `recursive` (boolean, optional): For directory deletion
-  - Use with caution - deletions are permanent
-
 - **move_file**
   - Move or rename files and directories
   - Inputs:
@@ -79,5 +72,5 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
 
 ## Notes
 
-- Exercise caution with `delete_file` (deletes files permanently) and `write_file` (overwrites existing files)
+- Exercise caution with `write_file`, since it can overwrite an existing file
 - File paths can be absolute or relative
