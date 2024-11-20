@@ -175,7 +175,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const credentialsPath = path.join(
   path.dirname(new URL(import.meta.url).pathname),
-  "../../.gdrive-server-credentials.json",
+  "../../../.gdrive-server-credentials.json",
 );
 
 async function authenticateAndSaveCredentials() {
@@ -183,7 +183,7 @@ async function authenticateAndSaveCredentials() {
   const auth = await authenticate({
     keyfilePath: path.join(
       path.dirname(new URL(import.meta.url).pathname),
-      "../../gcp-oauth.keys.json",
+      "../../../gcp-oauth.keys.json",
     ),
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
   });

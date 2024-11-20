@@ -40,7 +40,7 @@ Make sure to build the server with either `npm run build` or `npm run watch`.
 
 To authenticate and save credentials:
 
-1. Run the server with the `auth` argument: `node build/gdrive auth`
+1. Run the server with the `auth` argument: `node ./dist auth`
 2. This will open an authentication flow in your system browser
 3. Complete the authentication process
 4. Credentials will be saved for future use
@@ -49,7 +49,7 @@ To authenticate and save credentials:
 
 After authenticating:
 
-1. Run the server normally: `node build/gdrive`
+1. Run the server normally: `node ./dist`
 2. The server will load the saved credentials and start
 
 Note: If you haven't authenticated yet, the server will prompt you to run with the `auth` argument first.
