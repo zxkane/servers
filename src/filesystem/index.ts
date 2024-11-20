@@ -153,7 +153,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         name: "write_file",
         description:
           "Create a new file or completely overwrite an existing file with new content. " +
-          "This tool will create any necessary parent directories automatically. " +
           "Use with caution as it will overwrite existing files without warning. " +
           "Handles text content with proper encoding.",
         inputSchema: {

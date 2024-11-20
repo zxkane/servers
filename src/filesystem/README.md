@@ -10,20 +10,6 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
 - Search files
 - Get file metadata
 
-## Usage
-
-1. Install dependencies:
-   ```
-   npm install @modelcontextprotocol/sdk
-   ```
-
-2. Run server:
-   ```
-   node index.js
-   ```
-
-3. Server runs on stdio, communicate using MCP.
-
 ## API
 
 ### Resources
@@ -32,24 +18,66 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
 
 ### Tools
 
-1. `read_file`: Read file contents
-2. `read_multiple_files`: Read multiple files
-3. `write_file`: Create/overwrite file
-4. `create_directory`: Create directory
-5. `list_directory`: List directory contents
-6. `delete_file`: Delete file/directory
-7. `move_file`: Move/rename file/directory
-8. `search_files`: Search files/directories
-9. `get_file_info`: Get file metadata
+- **read_file**
+  - Read complete contents of a file
+  - Input: `path` (string)
+  - Reads complete file contents with UTF-8 encoding
 
-## Implementation
+- **read_multiple_files**
+  - Read multiple files simultaneously
+  - Input: `paths` (string[])
+  - Failed reads won't stop the entire operation
 
-- Uses `@modelcontextprotocol/sdk`
-- Async file operations with `fs/promises`
-- Type guards for argument validation
-- Error handling and detailed descriptions
+- **write_file**
+  - Create new file or overwrite existing
+  - Inputs:
+    - `path` (string): File location
+    - `content` (string): File content
+
+- **create_directory**
+  - Create new directory or ensure it exists
+  - Input: `path` (string)
+  - Creates parent directories if needed
+  - Succeeds silently if directory exists
+
+- **list_directory**
+  - List directory contents with [FILE] or [DIR] prefixes
+  - Input: `path` (string)
+
+- **delete_file**
+  - Remove files or directories
+  - Inputs:
+    - `path` (string)
+    - `recursive` (boolean, optional): For directory deletion
+  - Use with caution - deletions are permanent
+
+- **move_file**
+  - Move or rename files and directories
+  - Inputs:
+    - `source` (string)
+    - `destination` (string)
+  - Fails if destination exists
+
+- **search_files**
+  - Recursively search for files/directories
+  - Inputs:
+    - `path` (string): Starting directory
+    - `pattern` (string): Search pattern
+  - Case-insensitive matching
+  - Returns full paths to matches
+
+- **get_file_info**
+  - Get detailed file/directory metadata
+  - Input: `path` (string)
+  - Returns:
+    - Size
+    - Creation time
+    - Modified time
+    - Access time
+    - Type (file/directory)
+    - Permissions
 
 ## Notes
 
-- Careful with `delete_file` and `write_file` (overwrites existing)
+- Exercise caution with `delete_file` (deletes files permanently) and `write_file` (overwrites existing files)
 - File paths can be absolute or relative

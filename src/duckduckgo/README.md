@@ -1,39 +1,37 @@
 # DuckDuckGo MCP Server
+
 MCP server providing search functionality via DuckDuckGo's HTML interface.
 
-## Core Concepts
+## Components
+
 ### Resources
-Single resource endpoint for search results:
+Single resource endpoint for search interface:
 ```duckduckgo://search```
 
 ### Tools
-Search tool with configurable result count:
-```json
-{
-  "name": "search",
-  "arguments": {
-    "query": "your search query",
-    "numResults": 5  // optional, defaults to 5
-  }
-}
-```
-
-## Implementation Details
-- HTML scraping via JSDOM
-- Clean result formatting with titles, snippets, and URLs
-- Error handling for network/parsing issues
-- Request rate limiting built-in via DuckDuckGo's interface
+- **duckduckgo_search**
+  - Performs a search using DuckDuckGo and returns the top search results
+  - Inputs:
+    - `query` (string, required): The search query to look up
+    - `numResults` (number, optional): Number of results to return (default: 10)
+  - Returns titles, snippets, and URLs of the search results
 
 ## Usage Example
-```typescript
-// Search tool response format
+```javascript
+// Example tool call
 {
-  content: [{
-    type: "text",
-    text: "Title: Example Result\nSnippet: Result description...\nURL: https://..."
+  "name": "duckduckgo_search",
+  "arguments": {
+    "query": "your search query",
+    "numResults": 10
+  }
+}
+
+// Example response format:
+{
+  "content": [{
+    "type": "text",
+    "text": "Title: Result Title\nSnippet: Result description...\nURL: https://example.com\n\nTitle: Another Result\n..."
   }]
 }
 ```
-
-## Development
-Requires Node.js and npm. Uses ES modules.

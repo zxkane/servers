@@ -16,7 +16,8 @@ const SEARCH_TOOL: Tool = {
   name: "duckduckgo_search",
   description:
     "Performs a search using DuckDuckGo and returns the top search results. " +
-    "Returns titles, snippets, and URLs of the search results. ",
+    "Returns titles, snippets, and URLs of the search results. " +
+    "Use this tool to search for current information on the internet.",
   inputSchema: {
     type: "object",
     properties: {
