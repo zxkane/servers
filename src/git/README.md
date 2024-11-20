@@ -44,36 +44,6 @@ python -m mcp_git
 ```
 
 ## Configuration
-### Configure for Zed
-
-Add to your Zed settings.json:
-
-```json
-"experimental.context_servers": {
-  "servers": [
-    {
-      "id": "mcp-git",
-      "executable": "uvx",
-      "args": ["mcp-git"]
-    }
-  ]
-},
-```
-
-Alternatively, if using pip installation:
-
-```json
-"experimental.context_servers": {
-  "servers": [
-    {
-      "id": "mcp-git",
-      "executable": "python",
-      "args": ["-m", "mcp_git"]
-    }
-  ]
-},
-```
-
 ### Configure for Claude.app
 
 Add to your Claude settings:
@@ -82,7 +52,7 @@ Add to your Claude settings:
 "mcpServers": {
   "mcp-git": {
     "command": "uvx",
-    "args": ["mcp-git"]
+    "args": ["mcp-git", "--repository", "path/to/git/repo"]
   }
 }
 ```
@@ -93,16 +63,41 @@ Alternatively, if using pip installation:
 "mcpServers": {
   "mcp-git": {
     "command": "python",
-    "args": ["-m", "mcp_git"]
+    "args": ["-m", "mcp_git", "--repository", "path/to/git/repo"]
   }
 }
 ```
+
+### Configure for Zed
+
+Add to your Zed settings.json:
+
+```json
+"context_servers": [
+  "mcp-git": {
+    "command": "uvx",
+    "args": ["mcp-git"]
+  }
+],
+```
+
+Alternatively, if using pip installation:
+
+```json
+"context_servers": {
+  "mcp-git": {
+    "command": "python",
+    "args": ["-m", "mcp-git"]
+  }
+},
+```
+
 
 ## Contributing
 
 We encourage contributions to help expand and improve mcp-git. Whether you want to add new tools, enhance existing functionality, or improve documentation, your input is valuable.
 
 For examples of other MCP servers and implementation patterns, see:
-https://github.com/modelcontextprotocol/servers/
+https://github.com/modelcontextprotocol/servers
 
 Pull requests are welcome! Feel free to contribute new ideas, bug fixes, or enhancements to make mcp-git even more powerful and useful.
