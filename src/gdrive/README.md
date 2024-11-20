@@ -43,13 +43,15 @@ To authenticate and save credentials:
 1. Run the server with the `auth` argument: `node ./dist auth`
 2. This will open an authentication flow in your system browser
 3. Complete the authentication process
-4. Credentials will be saved for future use
+4. Credentials will be saved in the root of this repo (i.e. `servers/.gdrive-server-credentials.json`)
 
-### Running the server
+### Usage with Desktop App
 
-After authenticating:
+To integrate this server with the desktop app, add the following to your app's server configuration:
 
-1. Run the server normally: `node ./dist`
-2. The server will load the saved credentials and start
-
-Note: If you haven't authenticated yet, the server will prompt you to run with the `auth` argument first.
+```json
+{
+  "mcp-server-gdrive": {
+    "command": "mcp-server-gdrive"
+  }
+}
