@@ -4,14 +4,13 @@ import anyio
 import anyio.lowlevel
 from pathlib import Path
 from git.types import Sequence
-from mcp_python.server import Server
-from mcp_python.server.stdio import stdio_server
-from mcp_python.types import Tool
-from mcp_python.server.types import EmbeddedResource, ImageContent
+from mcp.server import Server
+from mcp.server.session import ServerSession
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent, Tool, EmbeddedResource, ImageContent, ListRootsResult
 from enum import StrEnum
 import git
 from git.objects import Blob, Tree
-from mcp_python import ServerSession
 
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -167,7 +166,7 @@ async def serve(repository: Path | None) -> None:
             return
 
     # Create server
-    server = Server("git-mcp")
+    server = Server("mcp-git")
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -244,7 +243,7 @@ async def serve(repository: Path | None) -> None:
                     "server.request_context.session must be a ServerSession"
                 )
 
-            roots_result = await server.request_context.session.list_roots()
+            roots_result: ListRootsResult = await server.request_context.session.list_roots()
             logger.debug(f"Roots result: {roots_result}")
             repo_paths = []
             for root in roots_result.roots:
@@ -267,9 +266,10 @@ async def serve(repository: Path | None) -> None:
     @server.call_tool()
     async def call_tool(
         name: str, arguments: dict
-    ) -> Sequence[str | ImageContent | EmbeddedResource]:
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         if name == GitTools.LIST_REPOS:
-            return await list_repos()
+            result = await list_repos()
+            return [TextContent(type="text", text=str(r)) for r in result]
 
         repo_path = Path(arguments["repo_path"])
         repo = git.Repo(repo_path)
@@ -277,48 +277,65 @@ async def serve(repository: Path | None) -> None:
         match name:
             case GitTools.READ_FILE:
                 return [
-                    git_read_file(
-                        repo, arguments["file_path"], arguments.get("ref", "HEAD")
+                    TextContent(
+                        type="text",
+                        text=git_read_file(
+                            repo, arguments["file_path"], arguments.get("ref", "HEAD")
+                        )
                     )
                 ]
 
             case GitTools.LIST_FILES:
                 return [
-                    str(f)
+                    TextContent(type="text", text=str(f))
                     for f in git_list_files(
                         repo, arguments.get("path", ""), arguments.get("ref", "HEAD")
                     )
                 ]
 
             case GitTools.FILE_HISTORY:
-                return git_file_history(
-                    repo, arguments["file_path"], arguments.get("max_entries", 10)
-                )
+                return [
+                    TextContent(type="text", text=entry)
+                    for entry in git_file_history(
+                        repo, arguments["file_path"], arguments.get("max_entries", 10)
+                    )
+                ]
 
             case GitTools.COMMIT:
                 result = git_commit(repo, arguments["message"], arguments.get("files"))
-                return [result]
+                return [TextContent(type="text", text=result)]
 
             case GitTools.SEARCH_CODE:
-                return git_search_code(
-                    repo,
-                    arguments["query"],
-                    arguments.get("file_pattern", "*"),
-                    arguments.get("ref", "HEAD"),
-                )
+                return [
+                    TextContent(type="text", text=result)
+                    for result in git_search_code(
+                        repo,
+                        arguments["query"],
+                        arguments.get("file_pattern", "*"),
+                        arguments.get("ref", "HEAD"),
+                    )
+                ]
 
             case GitTools.GET_DIFF:
                 return [
-                    git_get_diff(
-                        repo,
-                        arguments["ref1"],
-                        arguments["ref2"],
-                        arguments.get("file_path"),
+                    TextContent(
+                        type="text",
+                        text=git_get_diff(
+                            repo,
+                            arguments["ref1"],
+                            arguments["ref2"],
+                            arguments.get("file_path"),
+                        )
                     )
                 ]
 
             case GitTools.GET_REPO_STRUCTURE:
-                return [git_get_repo_structure(repo, arguments.get("ref", "HEAD"))]
+                return [
+                    TextContent(
+                        type="text",
+                        text=git_get_repo_structure(repo, arguments.get("ref", "HEAD"))
+                    )
+                ]
 
             case _:
                 raise ValueError(f"Unknown tool: {name}")
@@ -326,7 +343,7 @@ async def serve(repository: Path | None) -> None:
     # Run the server
     options = server.create_initialization_options()
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, options)
+        await server.run(read_stream, write_stream, options, raise_exceptions=True)
 
 
 @click.command()
