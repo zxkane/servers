@@ -86,13 +86,8 @@ MCP Server for the Slack API, enabling Claude to interact with Slack workspaces.
    - `reactions:write` - Add emoji reactions to messages
    - `users:read` - View users and their basic information
 
-3. Configure User Scopes (for search functionality):
-   Navigate to "OAuth & Permissions" and add this scope:
-   - `search:read` - Search workspace content that the user has access to
-
 4. Install App to Workspace:
    - Click "Install to Workspace" and authorize the app
-   - Save the "User OAuth Token" that starts with `xoxp-`
    - Save the "Bot User OAuth Token" that starts with `xoxb-`
 
 5. Get your Team ID (starts with a `T`) by following [this guidance](https://slack.com/help/articles/221769328-Locate-your-Slack-URL-or-ID#find-your-workspace-or-org-id)
@@ -105,7 +100,6 @@ MCP Server for the Slack API, enabling Claude to interact with Slack workspaces.
        "command": "mcp-server-slack",
        "env": {
          "SLACK_BOT_TOKEN": "xoxb-your-bot-token",
-         "SLACK_USER_TOKEN": "xoxp-your-user-token",
          "SLACK_TEAM_ID": "T01234567"
        }
      }
