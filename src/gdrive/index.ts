@@ -44,7 +44,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 
   return {
     resources: files.map((file) => ({
-      uri: `gdrive://${file.id}`,
+      uri: `gdrive:///${file.id}`,
       mimeType: file.mimeType,
       name: file.name,
     })),
@@ -53,7 +53,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 });
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const fileId = request.params.uri.replace("gdrive://", "");
+  const fileId = request.params.uri.replace("gdrive:///", "");
 
   // First get file metadata to check mime type
   const file = await drive.files.get({
@@ -149,14 +149,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "search") {
-    const query = request.params.arguments?.query as string;
-
+    const userQuery = request.params.arguments?.query as string;
+    const escapedQuery = userQuery.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const formattedQuery = `fullText contains '${escapedQuery}'`;
+    
     const res = await drive.files.list({
-      q: query,
+      q: formattedQuery,
       pageSize: 10,
       fields: "files(id, name, mimeType, modifiedTime, size)",
     });
-
+    
     const fileList = res.data.files
       ?.map((file: any) => `${file.name} (${file.mimeType})`)
       .join("\n");
@@ -175,7 +177,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 const credentialsPath = path.join(
   path.dirname(new URL(import.meta.url).pathname),
-  "../../.gdrive-server-credentials.json",
+  "../../../.gdrive-server-credentials.json",
 );
 
 async function authenticateAndSaveCredentials() {
@@ -183,7 +185,7 @@ async function authenticateAndSaveCredentials() {
   const auth = await authenticate({
     keyfilePath: path.join(
       path.dirname(new URL(import.meta.url).pathname),
-      "../../gcp-oauth.keys.json",
+      "../../../gcp-oauth.keys.json",
     ),
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
   });
