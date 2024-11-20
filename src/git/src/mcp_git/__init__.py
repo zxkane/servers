@@ -18,7 +18,7 @@ from mcp.types import (
     ListRootsResult,
     RootsCapability,
 )
-from enum import StrEnum
+from enum import Enum
 import git
 from git.objects import Blob, Tree
 
@@ -90,7 +90,7 @@ class ListTagsInput(BaseModel):
     repo_path: str
 
 
-class GitTools(StrEnum):
+class GitTools(str, Enum):
     READ_FILE = "git_read_file"
     LIST_FILES = "git_list_files"
     FILE_HISTORY = "git_file_history"

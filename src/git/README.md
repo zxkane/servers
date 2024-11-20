@@ -92,6 +92,6 @@ Alternatively, if using pip installation:
 ## Contributing
 
 For examples of other MCP servers and implementation patterns, see:
-https://github.com/modelcontextprotocol/example-servers/
+https://github.com/modelcontextprotocol/servers/
 
 Pull requests welcome!
