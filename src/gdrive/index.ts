@@ -149,14 +149,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "search") {
-    const query = request.params.arguments?.query as string;
-
+    const userQuery = request.params.arguments?.query as string;
+    const escapedQuery = userQuery.replace(/'/g, "\\'");
+    const formattedQuery = `fullText contains '${escapedQuery}'`;
+    
     const res = await drive.files.list({
-      q: query,
+      q: formattedQuery,
       pageSize: 10,
       fields: "files(id, name, mimeType, modifiedTime, size)",
     });
-
+    
     const fileList = res.data.files
       ?.map((file: any) => `${file.name} (${file.mimeType})`)
       .join("\n");
