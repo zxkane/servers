@@ -41,11 +41,6 @@ interface GetThreadRepliesArgs {
   thread_ts: string;
 }
 
-interface SearchMessagesArgs {
-  query: string;
-  count?: number;
-}
-
 interface GetUsersArgs {
   cursor?: string;
   limit?: number;
@@ -180,26 +175,6 @@ const getThreadRepliesTool: Tool = {
   },
 };
 
-const searchMessagesTool: Tool = {
-  name: "slack_search_messages",
-  description: "Search for messages across channels",
-  inputSchema: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "The search query",
-      },
-      count: {
-        type: "number",
-        description: "Number of results to return (default 5)",
-        default: 5,
-      },
-    },
-    required: ["query"],
-  },
-};
-
 const getUsersTool: Tool = {
   name: "slack_get_users",
   description:
@@ -237,15 +212,10 @@ const getUserProfileTool: Tool = {
 
 class SlackClient {
   private botHeaders: { Authorization: string; "Content-Type": string };
-  private userHeaders: { Authorization: string; "Content-Type": string };
 
-  constructor(botToken: string, userToken: string) {
+  constructor(botToken: string) {
     this.botHeaders = {
       Authorization: `Bearer ${botToken}`,
-      "Content-Type": "application/json",
-    };
-    this.userHeaders = {
-      Authorization: `Bearer ${userToken}`,
       "Content-Type": "application/json",
     };
   }
@@ -350,20 +320,6 @@ class SlackClient {
     return response.json();
   }
 
-  async searchMessages(query: string, count: number = 5): Promise<any> {
-    const params = new URLSearchParams({
-      query: query,
-      count: count.toString(),
-    });
-
-    const response = await fetch(
-      `https://slack.com/api/search.messages?${params}`,
-      { headers: this.userHeaders },
-    );
-
-    return response.json();
-  }
-
   async getUsers(limit: number = 100, cursor?: string): Promise<any> {
     const params = new URLSearchParams({
       limit: Math.min(limit, 200).toString(),
@@ -398,12 +354,11 @@ class SlackClient {
 
 async function main() {
   const botToken = process.env.SLACK_BOT_TOKEN;
-  const userToken = process.env.SLACK_USER_TOKEN;
   const teamId = process.env.SLACK_TEAM_ID;
 
-  if (!botToken || !userToken || !teamId) {
+  if (!botToken || !teamId) {
     console.error(
-      "Please set SLACK_BOT_TOKEN, SLACK_USER_TOKEN, and SLACK_TEAM_ID environment variables",
+      "Please set SLACK_BOT_TOKEN and SLACK_TEAM_ID environment variables",
     );
     process.exit(1);
   }
@@ -421,7 +376,7 @@ async function main() {
     },
   );
 
-  const slackClient = new SlackClient(botToken, userToken);
+  const slackClient = new SlackClient(botToken);
 
   server.setRequestHandler(
     CallToolRequestSchema,
@@ -528,21 +483,6 @@ async function main() {
             };
           }
 
-          case "slack_search_messages": {
-            const args = request.params
-              .arguments as unknown as SearchMessagesArgs;
-            if (!args.query) {
-              throw new Error("Missing required argument: query");
-            }
-            const response = await slackClient.searchMessages(
-              args.query,
-              args.count,
-            );
-            return {
-              content: [{ type: "text", text: JSON.stringify(response) }],
-            };
-          }
-
           case "slack_get_users": {
             const args = request.params.arguments as unknown as GetUsersArgs;
             const response = await slackClient.getUsers(
@@ -595,7 +535,6 @@ async function main() {
         addReactionTool,
         getChannelHistoryTool,
         getThreadRepliesTool,
-        searchMessagesTool,
         getUsersTool,
         getUserProfileTool,
       ],
