@@ -1,5 +1,5 @@
 [project]
-name = "mcp-git"
+name = "mcp-server-git"
 version = "0.2.0"
 description = "A Model Context Protocol server providing tools to read, search, and manipulate Git repositories programmatically via LLMs"
 readme = "README.md"
@@ -23,11 +23,14 @@ dependencies = [
 ]
 
 [project.scripts]
-mcp-git = "mcp_git:main"
+mcp-server-git = "mcp_server_git:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = ["ruff>=0.7.3"]
+dev-dependencies = [
+    "pyright>=1.1.389",
+    "ruff>=0.7.3",
+]
