@@ -2,6 +2,14 @@
 
 MCP Server for the GitHub API, enabling file operations, repository management, and more.
 
+### Features
+
+- **Automatic Branch Creation**: When creating/updating files or pushing changes, branches are automatically created if they don't exist
+- **Comprehensive Error Handling**: Clear error messages for common issues
+- **Git History Preservation**: Operations maintain proper Git history without force pushing
+- **Batch Operations**: Support for both single-file and multi-file operations
+
+
 ## Tools
 
 1. `create_or_update_file`
@@ -96,12 +104,15 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
 
 ## Setup
 
-1. Create a GitHub Personal Access Token with appropriate permissions:
-   - Go to GitHub Settings > Developer settings > Personal access tokens
-   - Create a token with required permissions (e.g., repo, workflow)
+### Personal Access Token
+[Create a GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with appropriate permissions:
+   - Go to [Personal access tokens](https://github.com/settings/tokens) (in GitHub Settings > Developer settings)
+   - Create a token with the `repo` scope ("Full control of private repositories")
+     - Alternatively, if working only with public repositories, select only the `public_repo` scope
    - Copy the generated token
 
-2. To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
+### Usage with Claude Desktop
+To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
    ```json
    {
      "mcp-server-github": {
@@ -112,26 +123,3 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
      }
    }
    ```
-
-## Features
-
-- **Automatic Branch Creation**: When creating/updating files or pushing changes, branches are automatically created if they don't exist
-- **Comprehensive Error Handling**: Clear error messages for common issues
-- **Git History Preservation**: Operations maintain proper Git history without force pushing
-- **Batch Operations**: Support for both single-file and multi-file operations
-
-## Error Handling
-
-The server provides detailed error messages for common scenarios:
-- Branch doesn't exist
-- File not found
-- Authentication issues
-- API rate limiting
-- Invalid input parameters
-
-## Limitations
-
-- Maximum file size limit of 100MB (GitHub limitation)
-- API rate limits apply based on your GitHub account
-- Some operations may require specific repository permissions
-- Binary files must be base64 encoded

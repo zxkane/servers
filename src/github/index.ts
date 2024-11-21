@@ -42,10 +42,6 @@ if (!GITHUB_PERSONAL_ACCESS_TOKEN) {
   process.exit(1);
 }
 
-// GitHub API helper functions
-
-// Add these helper functions to your existing code
-
 async function forkRepository(
   owner: string,
   repo: string,
