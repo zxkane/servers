@@ -114,13 +114,15 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
 
 ### Usage with Claude Desktop
 To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcp-server-github": {
-       "command": "mcp-server-github",
-       "env": {
-         "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
-       }
-     }
-   }
-   ```
+
+```json
+{
+  "github": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-github"],
+    "env": {
+      "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+    }
+  }
+}
+```

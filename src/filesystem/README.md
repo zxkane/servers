@@ -82,8 +82,8 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
 Add this to your `claude_desktop_config.json`:
 ```json
 {
-  "mcp-server-filesystem": {
-    "command": "mcp-server-filesystem",
-    "args": ["Users/username/Desktop", "/path/to/other/allowed/dir"]
+  "filesystem": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/username/Desktop", "/path/to/other/allowed/dir"]
   }
 }

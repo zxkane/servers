@@ -37,10 +37,13 @@ An MCP server implementation that integrates the Brave Search API, providing bot
 Add this to your `claude_desktop_config.json`:
 
 ```json
-"mcp-server-brave-search": {
-  "command": "mcp-server-brave-search",
-  "env": {
-    "BRAVE_API_KEY": "YOUR_API_KEY_HERE"
+{
+  "brave-search": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+    "env": {
+      "BRAVE_API_KEY": "YOUR_API_KEY_HERE"
+    }
   }
 }
 ```

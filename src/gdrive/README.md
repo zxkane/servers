@@ -51,7 +51,9 @@ To integrate this server with the desktop app, add the following to your app's s
 
 ```json
 {
-  "mcp-server-gdrive": {
-    "command": "mcp-server-gdrive"
+  "gdrive": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-gdrive"]
   }
 }
+```
