@@ -10,6 +10,8 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
 - Search files
 - Get file metadata
 
+**Note**: The server will only allow operations within directories specified via `args`.
+
 ## API
 
 ### Resources
@@ -29,7 +31,7 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
   - Failed reads won't stop the entire operation
 
 - **write_file**
-  - Create new file or overwrite existing
+  - Create new file or overwrite existing (exercise caution with this)
   - Inputs:
     - `path` (string): File location
     - `content` (string): File content
@@ -70,7 +72,18 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
     - Type (file/directory)
     - Permissions
 
-## Notes
+- **list_allowed_directories**
+  - List all directories the server is allowed to access
+  - No input required
+  - Returns:
+    - Directories that this server can read/write from
 
-- Exercise caution with `write_file`, since it can overwrite an existing file
-- File paths can be absolute or relative
+## Usage with Claude Desktop
+Add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcp-server-filesystem": {
+    "command": "mcp-server-filesystem",
+    "args": ["Users/username/Desktop", "Users/username/Desktop", "/path/to/other/allowed/dir"]
+  }
+}
