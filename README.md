@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A collection of reference implementations and community-contributed servers for the Model Context Protocol (MCP). This repository showcases the versatility and extensibility of MCP, demonstrating how it can be used to give Large Language Models (LLMs) secure, controlled access to external tools and data sources.
+A collection of reference implementations and community-contributed servers for the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP). This repository showcases the versatility and extensibility of MCP, demonstrating how it can be used to give Large Language Models (LLMs) secure, controlled access to tools and data sources.
 
 ## 🌟 Featured Servers
 
@@ -13,7 +13,7 @@ A collection of reference implementations and community-contributed servers for 
 - **[Slack](src/slack)** - Channel management and messaging capabilities
 - **[Memory](src/memory)** - Knowledge graph-based persistent memory system
 - **[Puppeteer](src/puppeteer)** - Browser automation and web scraping
-- **[Brave Search](src/brave-search)** - Web and local search using Brave's API
+- **[Brave Search](src/brave-search)** - Web and local search using Brave's Search API
 - **[Google Maps](src/google-maps)** - Location services, directions, and place details
 
 ## 🚀 Getting Started
@@ -67,7 +67,7 @@ Interested in creating your own MCP server? Visit the official documentation at 
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for information about contributing to the MCP servers repository.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for information about contributing to this repository.
 
 ## 🔒 Security
 
@@ -83,10 +83,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## ⭐ Support
 
-If you find MCP servers useful, please consider:
-- Starring the repository
-- Contributing new servers or improvements
-- Sharing your experience with the community
+If you find MCP servers useful, please consider starring the repository and contributing new servers or improvements!
 
 ---
 
