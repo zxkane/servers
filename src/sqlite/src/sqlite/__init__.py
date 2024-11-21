@@ -1,10 +1,18 @@
 from . import server
 import asyncio
+import argparse
+import os
 
 
 def main():
     """Main entry point for the package."""
-    asyncio.run(server.main())
+    parser = argparse.ArgumentParser(description='SQLite MCP Server')
+    parser.add_argument('--db-path', 
+                       default="./sqlite_mcp_server.db",
+                       help='Path to SQLite database file')
+    
+    args = parser.parse_args()
+    asyncio.run(server.main(args.db_path))
 
 
 # Optionally expose other important items at package level
