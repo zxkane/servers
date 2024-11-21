@@ -107,6 +107,7 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
 ### Personal Access Token
 [Create a GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with appropriate permissions:
    - Go to [Personal access tokens](https://github.com/settings/tokens) (in GitHub Settings > Developer settings)
+   - Select which repositories you'd like this token to have access to (Public, All, or Select)
    - Create a token with the `repo` scope ("Full control of private repositories")
      - Alternatively, if working only with public repositories, select only the `public_repo` scope
    - Copy the generated token
