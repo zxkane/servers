@@ -4,26 +4,18 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
   ListToolsRequestSchema,
-  ReadResourceRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import fetch from "node-fetch";
 
-// Define tool schemas
 const WEB_SEARCH_TOOL: Tool = {
   name: "brave_web_search",
   description:
     "Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. " +
     "Use this for broad information gathering, recent events, or when you need diverse web sources. " +
     "Supports pagination, content filtering, and freshness controls. " +
-    "Maximum 20 results per request, with offset for pagination. " +
-    "Additional features:\n" +
-    "- Safesearch: moderate (default), strict, or off\n" +
-    "- Freshness: filter by recency (past day/week/month/year)\n" +
-    "- Result types: web, news, videos, discussions\n" +
-    "- Spell check and query alteration support",
+    "Maximum 20 results per request, with offset for pagination. ",
   inputSchema: {
     type: "object",
     properties: {
@@ -41,37 +33,6 @@ const WEB_SEARCH_TOOL: Tool = {
         description: "Pagination offset (max 9, default 0)",
         default: 0
       },
-      freshness: {
-        type: "string",
-        description: "Filter by recency: pd (past day), pw (past week), pm (past month), or custom date range",
-        enum: ["pd", "pw", "pm", "py"]
-      },
-      safesearch: {
-        type: "string",
-        description: "Content filtering level",
-        enum: ["off", "moderate", "strict"],
-        default: "moderate"
-      },
-      country: {
-        type: "string",
-        description: "2-letter country code for localized results",
-        default: "US"
-      },
-      search_lang: {
-        type: "string",
-        description: "Search language (2+ char code)",
-        default: "en"
-      },
-      ui_lang: {
-        type: "string",
-        description: "UI language preference",
-        default: "en-US"
-      },
-      result_filter: {
-        type: "string",
-        description: "Comma-separated result types: web, news, videos, discussions, locations",
-        default: null
-      }
     },
     required: ["query"],
   },
@@ -86,7 +47,6 @@ const LOCAL_SEARCH_TOOL: Tool = {
     "- Business names and addresses\n" +
     "- Ratings and review counts\n" +
     "- Phone numbers and opening hours\n" +
-    "- AI-generated descriptions\n" +
     "Use this when the query implies 'near me' or mentions specific locations. " +
     "Automatically falls back to web search if no local results are found.",
   inputSchema: {
@@ -101,26 +61,6 @@ const LOCAL_SEARCH_TOOL: Tool = {
         description: "Number of results (1-20, default 5)",
         default: 5
       },
-      units: {
-        type: "string",
-        description: "Measurement system for distances",
-        enum: ["metric", "imperial"]
-      },
-      country: {
-        type: "string",
-        description: "2-letter country code for localized results",
-        default: "US"
-      },
-      search_lang: {
-        type: "string",
-        description: "Search language (2+ char code)",
-        default: "en"
-      },
-      ui_lang: {
-        type: "string",
-        description: "UI language preference",
-        default: "en-US"
-      }
     },
     required: ["query"]
   }
@@ -135,7 +75,6 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
-      resources: {},
     },
   },
 );
@@ -221,7 +160,6 @@ interface BraveDescription {
   descriptions: {[id: string]: string};
 }
 
-// Type guard functions for arguments
 function isBraveWebSearchArgs(args: unknown): args is { query: string; count?: number } {
   return (
     typeof args === "object" &&
@@ -240,19 +178,12 @@ function isBraveLocalSearchArgs(args: unknown): args is { query: string; count?:
   );
 }
 
-// API functions
 async function performWebSearch(query: string, count: number = 10, offset: number = 0) {
   checkRateLimit();
   const url = new URL('https://api.search.brave.com/res/v1/web/search');
   url.searchParams.set('q', query);
-  url.searchParams.set('search_lang', 'en');
   url.searchParams.set('count', Math.min(count, 20).toString()); // API limit
   url.searchParams.set('offset', offset.toString());
-  url.searchParams.set('result_filter', 'web');
-  url.searchParams.set('text_decorations', '0');
-  url.searchParams.set('spellcheck', '0');
-  url.searchParams.set('safesearch', 'moderate');
-  url.searchParams.set('freshness', 'pw'); // Past week results
 
   const response = await fetch(url, {
     headers: {
@@ -376,32 +307,6 @@ Description: ${descData.descriptions[poi.id] || 'No description available'}
 `;
   }).join('\n---\n') || 'No local results found';
 }
-
-// Resource handlers
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-  resources: [
-    {
-      uri: "brave://search",
-      mimeType: "text/plain",
-      name: "Brave Search Interface",
-    },
-  ],
-}));
-
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  if (request.params.uri.toString() === "brave://search") {
-    return {
-      contents: [
-        {
-          uri: "brave://search",
-          mimeType: "text/plain",
-          text: "Brave Search API interface",
-        },
-      ],
-    };
-  }
-  throw new Error("Resource not found");
-});
 
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({

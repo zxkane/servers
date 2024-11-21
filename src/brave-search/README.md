@@ -1,6 +1,6 @@
 # Brave Search MCP Server
 
-An MCP server implementation that integrates the Brave Search API, providing both web and local search capabilities through the Model Context Protocol.
+An MCP server implementation that integrates the Brave Search API, providing both web and local search capabilities.
 
 ## Features
 
@@ -9,86 +9,38 @@ An MCP server implementation that integrates the Brave Search API, providing bot
 - **Flexible Filtering**: Control result types, safety levels, and content freshness
 - **Smart Fallbacks**: Local search automatically falls back to web when no results are found
 
+## Tools
+
+- **brave_web_search**
+  - Execute web searches with pagination and filtering
+  - Inputs:
+    - `query` (string): Search terms
+    - `count` (number, optional): Results per page (max 20)
+    - `offset` (number, optional): Pagination offset (max 9)
+
+- **brave_local_search**
+  - Search for local businesses and services
+  - Inputs:
+    - `query` (string): Local search terms
+    - `count` (number, optional): Number of results (max 20)
+  - Automatically falls back to web search if no local results found
+
+
 ## Configuration
 
-### Client Configuration
-Add this to your MCP client config:
+### Getting an API Key
+1. Sign up for a [Brave Search API account](https://brave.com/search/api/)
+2. Choose a plan (Free tier available with 2,000 queries/month)
+3. Generate your API key [from the developer dashboard](https://api.search.brave.com/app/keys)
+
+### Usage with Claude Desktop
+Add this to your `claude_desktop_config.json`:
 
 ```json
-"brave-search": {
+"mcp-server-brave-search": {
   "command": "mcp-server-brave-search",
   "env": {
     "BRAVE_API_KEY": "YOUR_API_KEY_HERE"
   }
 }
 ```
-
-Alternatively, you can set the API key as an environment variable:
-
-```bash
-export BRAVE_API_KEY='your_actual_api_key_here'
-```
-
-### Getting an API Key
-1. Sign up for a Brave Search API account
-2. Choose a plan (Free tier available)
-3. Generate your API key from the developer dashboard
-
-## Tools
-
-### brave_web_search
-Performs general web searches:
-
-```javascript
-{
-  "name": "brave_web_search",
-  "arguments": {
-    "query": "latest AI developments",
-    "count": 10,
-    "freshness": "pw",  // Past week
-    "safesearch": "moderate"
-  }
-}
-```
-
-### brave_local_search
-Finds local businesses and services:
-
-```javascript
-{
-  "name": "brave_local_search",
-  "arguments": {
-    "query": "pizza near Central Park",
-    "count": 5,
-    "units": "imperial"
-  }
-}
-```
-
-## Key Implementation Details
-
-- Rate limiting to respect API quotas (1 request/second, 15000/month)
-- Parallel fetching of POI details and descriptions for local search
-- Type-safe argument validation
-- Comprehensive error handling and logging
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build the server
-npm run build
-
-# Run the server
-mcp-server-brave-search
-```
-
-## Contributing
-
-Contributions welcome! Please check the issues tab or submit a PR.
-
-## License
-
-MIT - see [LICENSE](LICENSE) file for details.
