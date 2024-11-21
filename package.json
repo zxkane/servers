@@ -14,7 +14,8 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "watch": "npm run watch --workspaces",
-    "publish-all": "npm publish --workspaces --access public && npm publish --access public"
+    "publish-all": "npm publish --workspaces --access public && npm publish --access public",
+    "link-all": "npm link --workspaces"
   },
   "dependencies": {
     "@modelcontextprotocol/server-everything": "*",
