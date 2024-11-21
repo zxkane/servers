@@ -84,6 +84,6 @@ Add this to your `claude_desktop_config.json`:
 {
   "mcp-server-filesystem": {
     "command": "mcp-server-filesystem",
-    "args": ["Users/username/Desktop", "Users/username/Desktop", "/path/to/other/allowed/dir"]
+    "args": ["Users/username/Desktop", "/path/to/other/allowed/dir"]
   }
 }
