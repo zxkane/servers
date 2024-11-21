@@ -4,18 +4,23 @@ Example servers for the Model Context Protocol, to demonstrate the kinds of thin
 
 ## Getting started
 
-Install from npm:
+The servers in this repository can be used directly with `npx`. For example:
 
 ```sh
-npm install -g @modelcontextprotocol/servers
+npx -y @modelcontextprotocol/server-memory
 ```
 
-Then, the servers will be globally available on your PATH:
+This will start the memory server. However, this isn't very useful on its own, and should instead be configured into an MCP client. For example, here's the Claude Desktop configuration to use the above server:
 
-```sh
-mcp-server-everything
-mcp-server-postgres
-# ...
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    }
+  }
+}
 ```
 
-Each server will operate differently. See the READMEs within [src](src/) for more information.
+Individual servers may require additional arguments or environment variables to be set. See the READMEs within [src](src/) for more information.
