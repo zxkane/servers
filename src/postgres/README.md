@@ -25,9 +25,11 @@ The server provides schema information for each table in the database:
 To use this server with the Claude Desktop app, add the following configuration to the "mcpServers" section of your `claude_desktop_config.json`:
 
 ```json
-"postgres": {
-  "command": "mcp-server-postgres",
-  "args": ["postgresql://localhost/mydb"]
+{
+  "postgres": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+  }
 }
 ```
 

@@ -55,11 +55,15 @@ MCP Server for the Google Maps API.
 1. Get a Google Maps API key by following the instructions [here](https://developers.google.com/maps/documentation/javascript/get-api-key#create-api-keys).
 
 2. To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
-    ```json
-        "mcp-server-google-maps": {
-        "command": "mcp-server-google-maps",
-        "env": {
-            "GOOGLE_MAPS_API_KEY": "<YOUR_API_KEY>"
-        }
+
+```json
+{
+  "google-maps": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+    "env": {
+      "GOOGLE_MAPS_API_KEY": "<YOUR_API_KEY>"
     }
-    ```
+  }
+}
+```

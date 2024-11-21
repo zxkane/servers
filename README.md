@@ -18,31 +18,52 @@ A collection of reference implementations and community-contributed servers for 
 
 ## 🚀 Getting Started
 
-### Installation
+The servers in this repository can be used directly with `npx`. For example:
 
-```bash
-# Install all servers globally
-npm install -g @modelcontextprotocol/servers
-
-# Or install individual servers
-npm install -g @modelcontextprotocol/server-github
-npm install -g @modelcontextprotocol/server-filesystem
-# etc...
+```sh
+npx -y @modelcontextprotocol/server-memory
 ```
 
-### Usage
+This will start the [Memory](src/memory) server. However, this isn't very useful on its own, and should instead be configured into an MCP client. For example, here's the Claude Desktop configuration to use the above server:
 
-Each server can be run directly from the command line:
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    }
+  }
+}
+```
 
-```bash
-mcp-server-github
-mcp-server-filesystem ~/allowed/path
-mcp-server-postgres "postgresql://localhost/mydb"
+Additional examples might look like:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
+    }
+  }
+}
 ```
 
 ## 🛠️ Creating Your Own Server
 
-Interested in creating your own MCP server? Visit the official documentation at [modelcontextprotocol.io/introduction](https://modelcontextprotocol.io/introduction) for comprehensive guides, best practices, and technical details on implementing MCP servers.
+Interested in creating your own MCP server? Visit the official documentation at [modelcontextprotocol.io](https://modelcontextprotocol.io/introduction) for comprehensive guides, best practices, and technical details on implementing MCP servers.
 
 ## 🤝 Contributing
 
@@ -58,7 +79,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Community
 
-- [Discord](https://discord.gg/modelcontextprotocol)
 - [GitHub Discussions](https://github.com/modelcontextprotocol/servers/discussions)
 
 ## ⭐ Support

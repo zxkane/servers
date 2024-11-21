@@ -93,18 +93,21 @@ MCP Server for the Slack API, enabling Claude to interact with Slack workspaces.
 5. Get your Team ID (starts with a `T`) by following [this guidance](https://slack.com/help/articles/221769328-Locate-your-Slack-URL-or-ID#find-your-workspace-or-org-id)
 
 ### Usage with the Claude Desktop app
-   Add the following to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcp-server-slack": {
-       "command": "mcp-server-slack",
-       "env": {
-         "SLACK_BOT_TOKEN": "xoxb-your-bot-token",
-         "SLACK_TEAM_ID": "T01234567"
-       }
-     }
-   }
-   ```
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "slack": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-slack"],
+    "env": {
+      "SLACK_BOT_TOKEN": "xoxb-your-bot-token",
+      "SLACK_TEAM_ID": "T01234567"
+    }
+  }
+}
+```
 
 ### Troubleshooting
 
