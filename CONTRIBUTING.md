@@ -86,12 +86,6 @@ Documentation improvements are always welcome:
 - Add screenshots for UI changes
 - List any breaking changes
 
-## Review Process
-
-1. Maintainers will review your PR
-2. Address any requested changes
-3. Once approved, your PR will be merged
-
 ## Community
 
 - Participate in [GitHub Discussions](https://github.com/modelcontextprotocol/servers/discussions)
