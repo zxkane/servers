@@ -1,3 +1,5 @@
+name: TypeScript
+
 on:
   push:
     branches:

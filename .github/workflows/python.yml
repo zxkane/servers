@@ -1,0 +1,80 @@
+name: Python
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  detect-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.find-packages.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Python packages
+        id: find-packages
+        run: |
+          PACKAGES=$(find src -name pyproject.toml -exec dirname {} \; | jq -R -s -c 'split("\n")[:-1]')
+          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+
+  build:
+    needs: [detect-packages]
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+    name: Build ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "${{ matrix.package }}/.python-version"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: uv sync --frozen --all-extras --dev
+
+      - name: Run pyright
+        working-directory: ${{ matrix.package }}
+        run: uv run --frozen pyright
+
+      - name: Build package
+        working-directory: ${{ matrix.package }}
+        run: uv build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.package }}
+          path: ${{ matrix.package }}/dist/
+
+  publish:
+    needs: [build, detect-packages]
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+    name: Publish ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # Required for trusted publishing
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ matrix.package }}
+          path: dist/
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
