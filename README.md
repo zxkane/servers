@@ -1,6 +1,4 @@
-# MCP servers ![NPM Version](https://img.shields.io/npm/v/%40modelcontextprotocol%2Fexample-servers)
-
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+# MCP servers
 
 A collection of reference implementations and community-contributed servers for the Model Context Protocol (MCP). This repository showcases the versatility and extensibility of MCP, demonstrating how it can be used to give Large Language Models (LLMs) secure, controlled access to external tools and data sources.
 
