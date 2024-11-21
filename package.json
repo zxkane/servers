@@ -22,6 +22,7 @@
     "@modelcontextprotocol/server-postgres": "*",
     "@modelcontextprotocol/server-puppeteer": "*",
     "@modelcontextprotocol/server-slack": "*",
+    "@modelcontextprotocol/server-brave-search": "*",
     "@modelcontextprotocol/server-memory": "*"
   }
 }
