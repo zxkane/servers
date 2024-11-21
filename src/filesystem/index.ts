@@ -4,46 +4,51 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
   ListToolsRequestSchema,
-  ReadResourceRequestSchema,
+  ToolSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import fs from "fs/promises";
 import path from "path";
-import { promisify } from "util";
-import { exec as execCallback } from "child_process";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
-// Define interfaces for the tool arguments
-interface ReadFileArgs {
-  path: string;
-}
+const ReadFileArgsSchema = z.object({
+  path: z.string(),
+});
 
-interface ReadMultipleFilesArgs {
-  paths: string[];
-}
+const ReadMultipleFilesArgsSchema = z.object({
+  paths: z.array(z.string()),
+});
 
-interface WriteFileArgs {
-  path: string;
-  content: string;
-}
+const WriteFileArgsSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+});
 
-interface CreateDirectoryArgs {
-  path: string;
-}
+const CreateDirectoryArgsSchema = z.object({
+  path: z.string(),
+});
 
-interface ListDirectoryArgs {
-  path: string;
-}
+const ListDirectoryArgsSchema = z.object({
+  path: z.string(),
+});
 
-interface MoveFileArgs {
-  source: string;
-  destination: string;
-}
+const MoveFileArgsSchema = z.object({
+  source: z.string(),
+  destination: z.string(),
+});
 
-interface SearchFilesArgs {
-  path: string;
-  pattern: string;
-}
+const SearchFilesArgsSchema = z.object({
+  path: z.string(),
+  pattern: z.string(),
+});
+
+const GetFileInfoArgsSchema = z.object({
+  path: z.string(),
+});
+
+const ToolInputSchema = ToolSchema.shape.inputSchema;
+type ToolInput = z.infer<typeof ToolInputSchema>;
 
 interface FileInfo {
   size: number;
@@ -55,8 +60,6 @@ interface FileInfo {
   permissions: string;
 }
 
-const exec = promisify(execCallback);
-
 const server = new Server(
   {
     name: "example-servers/filesystem",
@@ -65,215 +68,56 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
-      resources: {}, // Need this since we're using resources
     },
   },
 );
-
-// Add Resources List Handler
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: [
-      {
-        uri: "file://system",
-        mimeType: "text/plain",
-        name: "File System Operations",
-      },
-    ],
-  };
-});
-
-// Add Read Resource Handler
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  if (request.params.uri.toString() === "file://system") {
-    return {
-      contents: [
-        {
-          uri: "file://system",
-          mimeType: "text/plain",
-          text: "File system operations interface",
-        },
-      ],
-    };
-  }
-  throw new Error("Resource not found");
-});
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
         name: "read_file",
-        description:
-          "Read the complete contents of a file from the file system. " +
-          "Handles various text encodings and provides detailed error messages " +
-          "if the file cannot be read. Use this tool when you need to examine " +
-          "the contents of a single file.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Absolute or relative path to the file you want to read",
-            },
-          },
-          required: ["path"],
-        },
+        description: "Read the complete contents of a file from the file system.",
+        inputSchema: zodToJsonSchema(ReadFileArgsSchema) as ToolInput,
       },
       {
         name: "read_multiple_files",
-        description:
-          "Read the contents of multiple files simultaneously. This is more " +
-          "efficient than reading files one by one when you need to analyze " +
-          "or compare multiple files. Each file's content is returned with its " +
-          "path as a reference. Failed reads for individual files won't stop " +
-          "the entire operation.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            paths: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description:
-                "List of file paths to read. Can be absolute or relative paths.",
-            },
-          },
-          required: ["paths"],
-        },
+        description: "Read the contents of multiple files simultaneously.", 
+        inputSchema: zodToJsonSchema(ReadMultipleFilesArgsSchema) as ToolInput,
       },
       {
         name: "write_file",
-        description:
-          "Create a new file or completely overwrite an existing file with new content. " +
-          "Use with caution as it will overwrite existing files without warning. " +
-          "Handles text content with proper encoding.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Path where the file should be written. Parent directories will be created if needed.",
-            },
-            content: {
-              type: "string",
-              description:
-                "Content to write to the file. Can include newlines and special characters.",
-            },
-          },
-          required: ["path", "content"],
-        },
+        description: "Create a new file or completely overwrite an existing file with new content.",
+        inputSchema: zodToJsonSchema(WriteFileArgsSchema) as ToolInput,
       },
       {
         name: "create_directory",
-        description:
-          "Create a new directory or ensure a directory exists. Can create multiple " +
-          "nested directories in one operation. If the directory already exists, " +
-          "this operation will succeed silently. Perfect for setting up directory " +
-          "structures for projects or ensuring required paths exist.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Path of the directory to create. Will create parent directories if they don't exist.",
-            },
-          },
-          required: ["path"],
-        },
+        description: "Create a new directory or ensure a directory exists.",
+        inputSchema: zodToJsonSchema(CreateDirectoryArgsSchema) as ToolInput,
       },
       {
         name: "list_directory",
-        description:
-          "Get a detailed listing of all files and directories in a specified path. " +
-          "Results clearly distinguish between files and directories with [FILE] and [DIR] " +
-          "prefixes. This tool is essential for understanding directory structure and " +
-          "finding specific files within a directory.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Path of the directory to list. Must be an existing directory.",
-            },
-          },
-          required: ["path"],
-        },
+        description: "Get a detailed listing of all files and directories in a specified path.",
+        inputSchema: zodToJsonSchema(ListDirectoryArgsSchema) as ToolInput,
       },
       {
         name: "move_file",
-        description:
-          "Move or rename files and directories. Can move files between directories " +
-          "and rename them in a single operation. If the destination exists, the " +
-          "operation will fail. Works across different directories and can be used " +
-          "for simple renaming within the same directory.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            source: {
-              type: "string",
-              description: "Current path of the file or directory",
-            },
-            destination: {
-              type: "string",
-              description:
-                "New path where the file or directory should be moved to",
-            },
-          },
-          required: ["source", "destination"],
-        },
+        description: "Move or rename files and directories.",
+        inputSchema: zodToJsonSchema(MoveFileArgsSchema) as ToolInput,
       },
       {
         name: "search_files",
-        description:
-          "Recursively search for files and directories matching a pattern. " +
-          "Searches through all subdirectories from the starting path. The search " +
-          "is case-insensitive and matches partial names. Returns full paths to all " +
-          "matching items. Great for finding files when you don't know their exact location.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description: "Starting directory for the search",
-            },
-            pattern: {
-              type: "string",
-              description:
-                "Text pattern to search for in file and directory names",
-            },
-          },
-          required: ["path", "pattern"],
-        },
+        description: "Recursively search for files and directories matching a pattern.",
+        inputSchema: zodToJsonSchema(SearchFilesArgsSchema) as ToolInput,
       },
       {
         name: "get_file_info",
-        description:
-          "Retrieve detailed metadata about a file or directory. Returns comprehensive " +
-          "information including size, creation time, last modified time, permissions, " +
-          "and type. This tool is perfect for understanding file characteristics " +
-          "without reading the actual content.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            path: {
-              type: "string",
-              description:
-                "Path to the file or directory to get information about",
-            },
-          },
-          required: ["path"],
-        },
+        description: "Retrieve detailed metadata about a file or directory.",
+        inputSchema: zodToJsonSchema(GetFileInfoArgsSchema) as ToolInput,
       },
     ],
   };
 });
-
 async function getFileStats(filePath: string): Promise<FileInfo> {
   const stats = await fs.stat(filePath);
   return {
@@ -313,106 +157,34 @@ async function searchFiles(
   return results;
 }
 
-// Add type guard functions for each argument type
-function isReadFileArgs(args: unknown): args is ReadFileArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    typeof (args as ReadFileArgs).path === "string"
-  );
-}
-
-function isReadMultipleFilesArgs(args: unknown): args is ReadMultipleFilesArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "paths" in args &&
-    Array.isArray((args as ReadMultipleFilesArgs).paths) &&
-    (args as ReadMultipleFilesArgs).paths.every(
-      (path) => typeof path === "string",
-    )
-  );
-}
-
-function isWriteFileArgs(args: unknown): args is WriteFileArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    "content" in args &&
-    typeof (args as WriteFileArgs).path === "string" &&
-    typeof (args as WriteFileArgs).content === "string"
-  );
-}
-
-function isCreateDirectoryArgs(args: unknown): args is CreateDirectoryArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    typeof (args as CreateDirectoryArgs).path === "string"
-  );
-}
-
-function isListDirectoryArgs(args: unknown): args is ListDirectoryArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    typeof (args as ListDirectoryArgs).path === "string"
-  );
-}
-
-function isMoveFileArgs(args: unknown): args is MoveFileArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "source" in args &&
-    "destination" in args &&
-    typeof (args as MoveFileArgs).source === "string" &&
-    typeof (args as MoveFileArgs).destination === "string"
-  );
-}
-
-function isSearchFilesArgs(args: unknown): args is SearchFilesArgs {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "path" in args &&
-    "pattern" in args &&
-    typeof (args as SearchFilesArgs).path === "string" &&
-    typeof (args as SearchFilesArgs).pattern === "string"
-  );
-}
-
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
 
     switch (name) {
       case "read_file": {
-        if (!isReadFileArgs(args)) {
-          throw new Error("Invalid arguments for read_file");
+        const parsed = ReadFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for read_file: ${parsed.error}`);
         }
-        const content = await fs.readFile(args.path, "utf-8");
+        const content = await fs.readFile(parsed.data.path, "utf-8");
         return {
           content: [{ type: "text", text: content }],
         };
       }
 
       case "read_multiple_files": {
-        if (!isReadMultipleFilesArgs(args)) {
-          throw new Error("Invalid arguments for read_multiple_files");
+        const parsed = ReadMultipleFilesArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for read_multiple_files: ${parsed.error}`);
         }
         const results = await Promise.all(
-          args.paths.map(async (filePath: string) => {
+          parsed.data.paths.map(async (filePath: string) => {
             try {
               const content = await fs.readFile(filePath, "utf-8");
               return `${filePath}:\n${content}\n`;
             } catch (error) {
-              const errorMessage =
-                error instanceof Error ? error.message : String(error);
+              const errorMessage = error instanceof Error ? error.message : String(error);
               return `${filePath}: Error - ${errorMessage}`;
             }
           }),
@@ -423,42 +195,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "write_file": {
-        if (!isWriteFileArgs(args)) {
-          throw new Error("Invalid arguments for write_file");
+        const parsed = WriteFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for write_file: ${parsed.error}`);
         }
-        await fs.writeFile(args.path, args.content, "utf-8");
+        await fs.writeFile(parsed.data.path, parsed.data.content, "utf-8");
         return {
-          content: [
-            { type: "text", text: `Successfully wrote to ${args.path}` },
-          ],
+          content: [{ type: "text", text: `Successfully wrote to ${parsed.data.path}` }],
         };
       }
 
       case "create_directory": {
-        if (!isCreateDirectoryArgs(args)) {
-          throw new Error("Invalid arguments for create_directory");
+        const parsed = CreateDirectoryArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for create_directory: ${parsed.error}`);
         }
-        await fs.mkdir(args.path, { recursive: true });
+        await fs.mkdir(parsed.data.path, { recursive: true });
         return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully created directory ${args.path}`,
-            },
-          ],
+          content: [{ type: "text", text: `Successfully created directory ${parsed.data.path}` }],
         };
       }
 
       case "list_directory": {
-        if (!isListDirectoryArgs(args)) {
-          throw new Error("Invalid arguments for list_directory");
+        const parsed = ListDirectoryArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for list_directory: ${parsed.error}`);
         }
-        const entries = await fs.readdir(args.path, { withFileTypes: true });
+        const entries = await fs.readdir(parsed.data.path, { withFileTypes: true });
         const formatted = entries
-          .map(
-            (entry) =>
-              `${entry.isDirectory() ? "[DIR]" : "[FILE]"} ${entry.name}`,
-          )
+          .map((entry) => `${entry.isDirectory() ? "[DIR]" : "[FILE]"} ${entry.name}`)
           .join("\n");
         return {
           content: [{ type: "text", text: formatted }],
@@ -466,50 +231,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "move_file": {
-        if (!isMoveFileArgs(args)) {
-          throw new Error("Invalid arguments for move_file");
+        const parsed = MoveFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for move_file: ${parsed.error}`);
         }
-        await fs.rename(args.source, args.destination);
+        await fs.rename(parsed.data.source, parsed.data.destination);
         return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully moved ${args.source} to ${args.destination}`,
-            },
-          ],
+          content: [{ type: "text", text: `Successfully moved ${parsed.data.source} to ${parsed.data.destination}` }],
         };
       }
 
       case "search_files": {
-        if (!isSearchFilesArgs(args)) {
-          throw new Error("Invalid arguments for search_files");
+        const parsed = SearchFilesArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for search_files: ${parsed.error}`);
         }
-        const results = await searchFiles(args.path, args.pattern);
+        const results = await searchFiles(parsed.data.path, parsed.data.pattern);
         return {
-          content: [
-            {
-              type: "text",
-              text:
-                results.length > 0 ? results.join("\n") : "No matches found",
-            },
-          ],
+          content: [{ type: "text", text: results.length > 0 ? results.join("\n") : "No matches found" }],
         };
       }
 
       case "get_file_info": {
-        if (!isCreateDirectoryArgs(args)) {
-          throw new Error("Invalid arguments for get_file_info");
+        const parsed = GetFileInfoArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for get_file_info: ${parsed.error}`);
         }
-        const info = await getFileStats(args.path);
+        const info = await getFileStats(parsed.data.path);
         return {
-          content: [
-            {
-              type: "text",
-              text: Object.entries(info)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join("\n"),
-            },
-          ],
+          content: [{ type: "text", text: Object.entries(info)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\n") }],
         };
       }
 
