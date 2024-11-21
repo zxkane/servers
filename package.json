@@ -23,6 +23,7 @@
     "@modelcontextprotocol/server-puppeteer": "*",
     "@modelcontextprotocol/server-slack": "*",
     "@modelcontextprotocol/server-brave-search": "*",
-    "@modelcontextprotocol/server-memory": "*"
+    "@modelcontextprotocol/server-memory": "*",
+    "@modelcontextprotocol/server-filesystem": "*"
   }
 }
