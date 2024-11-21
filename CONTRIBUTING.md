@@ -78,9 +78,13 @@ Documentation improvements are always welcome:
 
 ### Pull Request Guidelines
 
+- Thoroughly test your changes
+- Fill out the pull request template completely
+- Link any related issues
 - Provide clear description of changes
 - Include any necessary documentation updates
 - Add screenshots for UI changes
+- List any breaking changes
 
 ## Review Process
 
