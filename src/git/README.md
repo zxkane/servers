@@ -1,8 +1,8 @@
-# mcp-git: A git MCP server
+# mcp-server-git: A git MCP server
 
 A Model Context Protocol server for Git repository interaction and automation. This server provides tools to read, search, and manipulate Git repositories via Large Language Models.
 
-Please note that mcp-git is currently in early development. The functionality and available tools are subject to change and expansion as we continue to develop and improve the server.
+Please note that mcp-server-git is currently in early development. The functionality and available tools are subject to change and expansion as we continue to develop and improve the server.
 
 ## Available Tools
 
@@ -27,20 +27,20 @@ This list is expected to grow as we add more functionality to the server. We wel
 ### Using uv (recommended)
 
 When using [`uv`](https://docs.astral.sh/uv/) no specific installation is needed. We will
-use [`uvx`](https://docs.astral.sh/uv/guides/tools/) to directly run *mcp-git*.
+use [`uvx`](https://docs.astral.sh/uv/guides/tools/) to directly run *mcp-server-git*.
 
 ### Using PIP
 
-Alternatively you can install `mcp-git` via pip:
+Alternatively you can install `mcp-server-git` via pip:
 
 ```
-pip install mcp-git
+pip install mcp-server-git
 ```
 
 After installation, you can run it as a script using:
 
 ```
-python -m mcp_git
+python -m mcp_server_git
 ```
 
 ## Configuration
@@ -50,9 +50,9 @@ Add to your Claude settings:
 
 ```json
 "mcpServers": {
-  "mcp-git": {
+  "git": {
     "command": "uvx",
-    "args": ["mcp-git", "--repository", "path/to/git/repo"]
+    "args": ["mcp-server-git", "--repository", "path/to/git/repo"]
   }
 }
 ```
@@ -61,9 +61,9 @@ Alternatively, if using pip installation:
 
 ```json
 "mcpServers": {
-  "mcp-git": {
+  "git": {
     "command": "python",
-    "args": ["-m", "mcp_git", "--repository", "path/to/git/repo"]
+    "args": ["-m", "mcp_server_git", "--repository", "path/to/git/repo"]
   }
 }
 ```
@@ -74,9 +74,9 @@ Add to your Zed settings.json:
 
 ```json
 "context_servers": [
-  "mcp-git": {
+  "mcp-server-git": {
     "command": "uvx",
-    "args": ["mcp-git"]
+    "args": ["mcp-server-git"]
   }
 ],
 ```
@@ -85,9 +85,9 @@ Alternatively, if using pip installation:
 
 ```json
 "context_servers": {
-  "mcp-git": {
+  "mcp-server-git": {
     "command": "python",
-    "args": ["-m", "mcp-git"]
+    "args": ["-m", "mcp-server-git"]
   }
 },
 ```
@@ -95,9 +95,9 @@ Alternatively, if using pip installation:
 
 ## Contributing
 
-We encourage contributions to help expand and improve mcp-git. Whether you want to add new tools, enhance existing functionality, or improve documentation, your input is valuable.
+We encourage contributions to help expand and improve mcp-server-git. Whether you want to add new tools, enhance existing functionality, or improve documentation, your input is valuable.
 
 For examples of other MCP servers and implementation patterns, see:
 https://github.com/modelcontextprotocol/servers
 
-Pull requests are welcome! Feel free to contribute new ideas, bug fixes, or enhancements to make mcp-git even more powerful and useful.
+Pull requests are welcome! Feel free to contribute new ideas, bug fixes, or enhancements to make mcp-server-git even more powerful and useful.
