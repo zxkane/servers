@@ -5,12 +5,12 @@ Thank you for your interest in contributing to the Model Context Protocol (MCP) 
 ## Types of Contributions
 
 ### 1. New Servers
-Adding new servers is one of the most valuable ways to contribute. Before creating a new server:
+Adding a new server is a valuable way to contribute. Before creating a new server:
 
 - Check the [modelcontextprotocol.io](https://modelcontextprotocol.io) documentation
 - Ensure your server doesn't duplicate existing functionality
 - Consider whether your server would be generally useful to others
-- Follow security best practices from the MCP documentation
+- Follow [security best practices](https://modelcontextprotocol.io/docs/concepts/transports#security-considerations) from the MCP documentation
 
 ### 2. Improvements to Existing Servers
 Enhancements to existing servers are welcome! This includes:
@@ -18,7 +18,6 @@ Enhancements to existing servers are welcome! This includes:
 - Bug fixes
 - Performance improvements
 - New features
-- Documentation improvements
 - Security enhancements
 
 ### 3. Documentation
@@ -34,7 +33,7 @@ Documentation improvements are always welcome:
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/your-username/mcp-servers.git
+   git clone https://github.com/your-username/servers.git
    ```
 3. Add the upstream remote:
    ```bash
@@ -49,7 +48,6 @@ Documentation improvements are always welcome:
 
 ### Code Style
 - Follow the existing code style in the repository
-- Use TypeScript for JavaScript/Node.js servers
 - Include appropriate type definitions
 - Add comments for complex logic
 
@@ -58,11 +56,6 @@ Documentation improvements are always welcome:
 - Document all configuration options
 - Provide setup instructions
 - Include usage examples
-
-### Testing
-- Add appropriate tests for new functionality
-- Ensure existing tests pass
-- Test your changes thoroughly
 
 ### Security
 - Follow security best practices
@@ -85,18 +78,13 @@ Documentation improvements are always welcome:
 
 ### Pull Request Guidelines
 
+- Thoroughly test your changes
 - Fill out the pull request template completely
 - Link any related issues
 - Provide clear description of changes
 - Include any necessary documentation updates
 - Add screenshots for UI changes
 - List any breaking changes
-
-## Review Process
-
-1. Maintainers will review your PR
-2. Address any requested changes
-3. Once approved, your PR will be merged
 
 ## Community
 
