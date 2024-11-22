@@ -13,6 +13,7 @@ A collection of reference implementations and community-contributed servers for 
 - **[Puppeteer](src/puppeteer)** - Browser automation and web scraping
 - **[Brave Search](src/brave-search)** - Web and local search using Brave's Search API
 - **[Google Maps](src/google-maps)** - Location services, directions, and place details
+- **[Fetch](src/fetch)** - Web content fetching and conversion for efficient LLM usage
 
 ## 🚀 Getting Started
 
