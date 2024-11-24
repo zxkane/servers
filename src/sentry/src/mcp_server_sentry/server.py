@@ -72,8 +72,8 @@ def extract_issue_id(issue_id_or_url: str) -> str:
 
     if issue_id_or_url.startswith(("http://", "https://")):
         parsed_url = urlparse(issue_id_or_url)
-        if not parsed_url.netloc.endswith("sentry.io"):
-            raise SentryError("Invalid Sentry URL. Must be a URL ending with sentry.io")
+        if not parsed_url.hostname or not parsed_url.hostname.endswith(".sentry.io"):
+            raise SentryError("Invalid Sentry URL. Must be a URL ending with .sentry.io")
 
         path_parts = parsed_url.path.strip("/").split("/")
         if len(path_parts) < 2 or path_parts[0] != "issues":
