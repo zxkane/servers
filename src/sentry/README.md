@@ -6,23 +6,25 @@ MCP server for retrieving issues from sentry.io
 
 ### Resources
 
-The server implements a simple note storage system with:
-- Custom note:// URI scheme for accessing individual notes
-- Each note resource has a name, description and text/plain mimetype
+This server does not implement any resources.
 
 ### Prompts
 
 The server provides a single prompt:
-- summarize-notes: Creates summaries of all stored notes
-  - Optional "style" argument to control detail level (brief/detailed)
-  - Generates prompt combining all current notes with style preference
+- sentry-issue: Retrieves a Sentry issue by ID or URL
+  - Required "issue_id_or_url" argument to specify the issue
+  - Returns issue details including title, status, level, timestamps and stacktrace
 
 ### Tools
 
 The server implements one tool:
-- add-note: Adds a new note to the server
-  - Takes "name" and "content" as required string arguments
-  - Updates server state and notifies clients of resource changes
+- get-sentry-issue: Retrieves and analyzes Sentry issues
+  - Takes "issue_id_or_url" as required string argument
+  - Used for investigating production errors and crashes
+  - Provides access to detailed stacktraces
+  - Shows error patterns and frequencies
+  - Includes first/last occurrence timestamps
+  - Displays error counts and status
 
 ## Install
 
