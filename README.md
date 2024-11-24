@@ -2,6 +2,8 @@
 
 A collection of reference implementations and community-contributed servers for the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP). This repository showcases the versatility and extensibility of MCP, demonstrating how it can be used to give Large Language Models (LLMs) secure, controlled access to tools and data sources.
 
+Each MCP server is implemented with either the [Typescript MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) or [Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk).
+
 ## 🌟 Featured Servers
 
 - **[Filesystem](src/filesystem)** - Secure file operations with configurable access controls
@@ -16,13 +18,28 @@ A collection of reference implementations and community-contributed servers for 
 
 ## 🚀 Getting Started
 
-The servers in this repository can be used directly with `npx`. For example:
+### Using MCP Servers in this Repository
+Typescript-based servers in this repository can be used directly with `npx`. 
 
+For example, this will start the [Memory](src/memory) server:
 ```sh
 npx -y @modelcontextprotocol/server-memory
 ```
 
-This will start the [Memory](src/memory) server. However, this isn't very useful on its own, and should instead be configured into an MCP client. For example, here's the Claude Desktop configuration to use the above server:
+Python-based servers in this repository can be used directly with [`uvx`](https://docs.astral.sh/uv/concepts/tools/) or [`pip`](https://pypi.org/project/pip/). `uvx` is recommended for ease of use and setup. 
+
+For example, this will start the [Git](src/git) server:
+```sh
+# With uvx
+uvx mcp-server-git
+
+# With pip
+pip install mcp-server-git
+python -m mcp_server_git
+```
+
+### Using an MCP Client
+However, running a server on its own isn't very useful, and should instead be configured into an MCP client. For example, here's the Claude Desktop configuration to use the above server:
 
 ```json
 {
@@ -35,7 +52,7 @@ This will start the [Memory](src/memory) server. However, this isn't very useful
 }
 ```
 
-Additional examples might look like:
+Additional examples of using the Claude Desktop as an MCP client might look like:
 
 ```json
 {
@@ -43,6 +60,10 @@ Additional examples might look like:
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "path/to/git/repo"]
     },
     "github": {
       "command": "npx",
