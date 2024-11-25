@@ -1,6 +1,6 @@
 {
   "name": "@modelcontextprotocol/server-github",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "MCP server for using the GitHub API",
   "license": "MIT",
   "author": "Anthropic, PBC (https://anthropic.com)",
@@ -21,7 +21,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.6.0",
     "@types/node-fetch": "^2.6.12",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "zod-to-json-schema": "^3.23.5"
   },
   "devDependencies": {
     "shx": "^0.3.4",
