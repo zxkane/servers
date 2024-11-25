@@ -7,7 +7,6 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import fetch from "node-fetch";
 
 const WEB_SEARCH_TOOL: Tool = {
   name: "brave_web_search",
@@ -104,7 +103,7 @@ function checkRateLimit() {
     requestCount.lastReset = now;
   }
   if (requestCount.second >= RATE_LIMIT.perSecond ||
-      requestCount.month >= RATE_LIMIT.perMonth) {
+    requestCount.month >= RATE_LIMIT.perMonth) {
     throw new Error('Rate limit exceeded');
   }
   requestCount.second++;
