@@ -15,6 +15,7 @@ Each MCP server is implemented with either the [Typescript MCP SDK](https://gith
 - **[Puppeteer](src/puppeteer)** - Browser automation and web scraping
 - **[Brave Search](src/brave-search)** - Web and local search using Brave's Search API
 - **[Google Maps](src/google-maps)** - Location services, directions, and place details
+- **[Fetch](src/fetch)** - Web content fetching and conversion for efficient LLM usage
 
 ## 🚀 Getting Started
 
