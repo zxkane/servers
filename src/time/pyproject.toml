@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-time"
-version = "0.5.1"
+version = "0.5.1.pre3"
 description = "A Model Context Protocol server providing tools for time queries and timezone conversions for LLMs"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,4 +29,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = ["pyright>=1.1.389", "ruff>=0.7.3"]
+dev-dependencies = [
+    "freezegun>=1.5.1",
+    "pyright>=1.1.389",
+    "pytest>=8.3.3",
+    "ruff>=0.7.3",
+]
