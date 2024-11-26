@@ -60,7 +60,7 @@ Here's the Claude Desktop configuration to use the Puppeter server:
   "mcpServers": {
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer", "http://example.com"]
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }
