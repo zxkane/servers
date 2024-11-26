@@ -49,22 +49,15 @@ MCP Server for the Slack API, enabling Claude to interact with Slack workspaces.
      - `thread_ts` (string): Timestamp of the parent message
    - Returns: List of replies with their content and metadata
 
-7. `slack_search_messages`
-   - Search for messages across channels
-   - Required inputs:
-     - `query` (string): The search query
-   - Optional inputs:
-     - `count` (number, default: 5): Number of results to return
-   - Returns: Matching messages with their context
 
-8. `slack_get_users`
+7. `slack_get_users`
    - Get list of workspace users with basic profile information
    - Optional inputs:
      - `cursor` (string): Pagination cursor for next page
      - `limit` (number, default: 100, max: 200): Maximum users to return
    - Returns: List of users with their basic profiles
 
-9. `slack_get_user_profile`
+8. `slack_get_user_profile`
    - Get detailed profile information for a specific user
    - Required inputs:
      - `user_id` (string): The user's ID
