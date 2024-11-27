@@ -8,9 +8,13 @@ Each MCP server is implemented with either the [Typescript MCP SDK](https://gith
 
 - **[Filesystem](src/filesystem)** - Secure file operations with configurable access controls
 - **[GitHub](src/github)** - Repository management, file operations, and GitHub API integration
+- **[GitLab](src/gitlab)** - GitLab API, enabling project management
+- **[Git](src/git)** - Tools to read, search, and manipulate Git repositories
 - **[Google Drive](src/gdrive)** - File access and search capabilities for Google Drive
 - **[PostgreSQL](src/postgres)** - Read-only database access with schema inspection
+- **[Sqlite](src/sqlite)** - Database interaction and business intelligence capabilities
 - **[Slack](src/slack)** - Channel management and messaging capabilities
+- **[Sentry](src/sentry)** - Retrieving and analyzing issues from Sentry.io
 - **[Memory](src/memory)** - Knowledge graph-based persistent memory system
 - **[Puppeteer](src/puppeteer)** - Browser automation and web scraping
 - **[Brave Search](src/brave-search)** - Web and local search using Brave's Search API
