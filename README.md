@@ -101,7 +101,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Community
 
-- [GitHub Discussions](https://github.com/modelcontextprotocol/servers/discussions)
+- [GitHub Discussions](https://github.com/orgs/modelcontextprotocol/discussions)
 
 ## ⭐ Support
 
