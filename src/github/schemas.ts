@@ -399,98 +399,148 @@ export const CreateBranchSchema = RepoParamsSchema.extend({
     ),
 });
 
-// Search Response Schemas
+/**
+ * Response schema for a code search result item
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-code
+ */
 export const SearchCodeItemSchema = z.object({
-  name: z.string(),
-  path: z.string(),
-  sha: z.string(),
-  url: z.string(),
-  git_url: z.string(),
-  html_url: z.string(),
-  repository: GitHubRepositorySchema,
-  score: z.number(),
+  name: z.string().describe("The name of the file"),
+  path: z.string().describe("The path to the file in the repository"),
+  sha: z.string().describe("The SHA hash of the file"),
+  url: z.string().describe("The API URL for this file"),
+  git_url: z.string().describe("The Git URL for this file"),
+  html_url: z.string().describe("The HTML URL to view this file on GitHub"),
+  repository: GitHubRepositorySchema.describe(
+    "The repository where this file was found"
+  ),
+  score: z.number().describe("The search result score"),
 });
 
+/**
+ * Response schema for code search results
+ */
 export const SearchCodeResponseSchema = z.object({
-  total_count: z.number(),
-  incomplete_results: z.boolean(),
-  items: z.array(SearchCodeItemSchema),
+  total_count: z.number().describe("Total number of matching results"),
+  incomplete_results: z
+    .boolean()
+    .describe("Whether the results are incomplete"),
+  items: z.array(SearchCodeItemSchema).describe("The search results"),
 });
 
+/**
+ * Response schema for an issue search result item
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-issues-and-pull-requests
+ */
 export const SearchIssueItemSchema = z.object({
-  url: z.string(),
-  repository_url: z.string(),
-  labels_url: z.string(),
-  comments_url: z.string(),
-  events_url: z.string(),
-  html_url: z.string(),
-  id: z.number(),
-  node_id: z.string(),
-  number: z.number(),
-  title: z.string(),
-  user: GitHubIssueAssigneeSchema,
-  labels: z.array(GitHubLabelSchema),
-  state: z.string(),
-  locked: z.boolean(),
-  assignee: GitHubIssueAssigneeSchema.nullable(),
-  assignees: z.array(GitHubIssueAssigneeSchema),
-  comments: z.number(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  closed_at: z.string().nullable(),
-  body: z.string(),
-  score: z.number(),
+  url: z.string().describe("The API URL for this issue"),
+  repository_url: z
+    .string()
+    .describe("The API URL for the repository where this issue was found"),
+  labels_url: z.string().describe("The API URL for the labels of this issue"),
+  comments_url: z.string().describe("The API URL for comments of this issue"),
+  events_url: z.string().describe("The API URL for events of this issue"),
+  html_url: z.string().describe("The HTML URL to view this issue on GitHub"),
+  id: z.number().describe("The ID of this issue"),
+  node_id: z.string().describe("The Node ID of this issue"),
+  number: z.number().describe("The number of this issue"),
+  title: z.string().describe("The title of this issue"),
+  user: GitHubIssueAssigneeSchema.describe("The user who created this issue"),
+  labels: z.array(GitHubLabelSchema).describe("The labels of this issue"),
+  state: z.string().describe("The state of this issue"),
+  locked: z.boolean().describe("Whether this issue is locked"),
+  assignee: GitHubIssueAssigneeSchema.nullable().describe(
+    "The assignee of this issue"
+  ),
+  assignees: z
+    .array(GitHubIssueAssigneeSchema)
+    .describe("The assignees of this issue"),
+  comments: z.number().describe("The number of comments on this issue"),
+  created_at: z.string().describe("The creation time of this issue"),
+  updated_at: z.string().describe("The last update time of this issue"),
+  closed_at: z.string().nullable().describe("The closure time of this issue"),
+  body: z.string().describe("The body of this issue"),
+  score: z.number().describe("The search result score"),
   pull_request: z
     .object({
-      url: z.string(),
-      html_url: z.string(),
-      diff_url: z.string(),
-      patch_url: z.string(),
+      url: z.string().describe("The API URL for this pull request"),
+      html_url: z.string().describe("The HTML URL to view this pull request"),
+      diff_url: z.string().describe("The URL to view the diff"),
+      patch_url: z.string().describe("The URL to view the patch"),
     })
-    .optional(),
+    .optional()
+    .describe("Pull request details if this is a PR"),
 });
 
+/**
+ * Response schema for issue search results
+ */
 export const SearchIssuesResponseSchema = z.object({
-  total_count: z.number(),
-  incomplete_results: z.boolean(),
-  items: z.array(SearchIssueItemSchema),
+  total_count: z.number().describe("Total number of matching results"),
+  incomplete_results: z
+    .boolean()
+    .describe("Whether the results are incomplete"),
+  items: z.array(SearchIssueItemSchema).describe("The search results"),
 });
 
+/**
+ * Response schema for a user search result item
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-users
+ */
 export const SearchUserItemSchema = z.object({
-  login: z.string(),
-  id: z.number(),
-  node_id: z.string(),
-  avatar_url: z.string(),
-  gravatar_id: z.string(),
-  url: z.string(),
-  html_url: z.string(),
-  followers_url: z.string(),
-  following_url: z.string(),
-  gists_url: z.string(),
-  starred_url: z.string(),
-  subscriptions_url: z.string(),
-  organizations_url: z.string(),
-  repos_url: z.string(),
-  events_url: z.string(),
-  received_events_url: z.string(),
-  type: z.string(),
-  site_admin: z.boolean(),
-  score: z.number(),
+  login: z.string().describe("The username of the user"),
+  id: z.number().describe("The ID of the user"),
+  node_id: z.string().describe("The Node ID of the user"),
+  avatar_url: z.string().describe("The avatar URL of the user"),
+  gravatar_id: z.string().describe("The Gravatar ID of the user"),
+  url: z.string().describe("The API URL for this user"),
+  html_url: z.string().describe("The HTML URL to view this user on GitHub"),
+  followers_url: z.string().describe("The API URL for followers of this user"),
+  following_url: z.string().describe("The API URL for following of this user"),
+  gists_url: z.string().describe("The API URL for gists of this user"),
+  starred_url: z
+    .string()
+    .describe("The API URL for starred repositories of this user"),
+  subscriptions_url: z
+    .string()
+    .describe("The API URL for subscriptions of this user"),
+  organizations_url: z
+    .string()
+    .describe("The API URL for organizations of this user"),
+  repos_url: z.string().describe("The API URL for repositories of this user"),
+  events_url: z.string().describe("The API URL for events of this user"),
+  received_events_url: z
+    .string()
+    .describe("The API URL for received events of this user"),
+  type: z.string().describe("The type of this user"),
+  site_admin: z.boolean().describe("Whether this user is a site administrator"),
+  score: z.number().describe("The search result score"),
 });
 
+/**
+ * Response schema for user search results
+ */
 export const SearchUsersResponseSchema = z.object({
-  total_count: z.number(),
-  incomplete_results: z.boolean(),
-  items: z.array(SearchUserItemSchema),
+  total_count: z.number().describe("Total number of matching results"),
+  incomplete_results: z
+    .boolean()
+    .describe("Whether the results are incomplete"),
+  items: z.array(SearchUserItemSchema).describe("The search results"),
 });
 
-// Search Input Schemas
+/**
+ * Input schema for code search
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-code--parameters
+ */
 export const SearchCodeSchema = z.object({
-  q: z.string().describe("Search query (see GitHub code search syntax)"),
+  q: z
+    .string()
+    .describe(
+      "Search query. See GitHub code search syntax: https://docs.github.com/en/search-github/searching-on-github/searching-code"
+    ),
   sort: z
     .enum(["", "indexed"])
     .optional()
-    .describe("Sort field (only 'indexed' is supported)"),
+    .describe("Sort field. Only 'indexed' is supported"),
   order: z
     .enum(["asc", "desc"])
     .optional()
@@ -504,8 +554,16 @@ export const SearchCodeSchema = z.object({
   page: z.number().min(1).optional().describe("Page number"),
 });
 
+/**
+ * Input schema for issues search
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-issues-and-pull-requests--parameters
+ */
 export const SearchIssuesSchema = z.object({
-  q: z.string().describe("Search query (see GitHub issues search syntax)"),
+  q: z
+    .string()
+    .describe(
+      "Search query. See GitHub issues search syntax: https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests"
+    ),
   sort: z
     .enum([
       "comments",
@@ -535,8 +593,16 @@ export const SearchIssuesSchema = z.object({
   page: z.number().min(1).optional().describe("Page number"),
 });
 
+/**
+ * Input schema for users search
+ * @see https://docs.github.com/en/rest/search/search?apiVersion=2022-11-28#search-users--parameters
+ */
 export const SearchUsersSchema = z.object({
-  q: z.string().describe("Search query (see GitHub users search syntax)"),
+  q: z
+    .string()
+    .describe(
+      "Search query. See GitHub users search syntax: https://docs.github.com/en/search-github/searching-on-github/searching-users"
+    ),
   sort: z
     .enum(["followers", "repositories", "joined"])
     .optional()
