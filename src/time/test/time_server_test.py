@@ -3,7 +3,7 @@ import os
 from freezegun import freeze_time
 import pytest
 
-from mcp_server_time.server import TimeServer
+from mcp_server_time.server import TimeServer, serve
 
 
 @pytest.mark.parametrize(
@@ -455,41 +455,3 @@ def test_convert_time(test_time, source_tz, time_str, target_tz, expected):
         assert result.source.is_dst == expected["source"]["is_dst"]
         assert result.target.is_dst == expected["target"]["is_dst"]
         assert result.time_difference == expected["time_difference"]
-
-
-# @pytest.mark.anyio
-# async def test_call_tool(mock_forecast_response):
-#     class Response():
-#         def raise_for_status(self):
-#             pass
-
-#         def json(self):
-#             return mock_forecast_response
-
-#     class AsyncClient():
-#         def __aenter__(self):
-#             return self
-
-#         async def __aexit__(self, *exc_info):
-#             pass
-
-#         async def get(self, *args, **kwargs):
-#             return Response()
-
-#     with patch('httpx.AsyncClient', new=AsyncClient) as mock_client:
-#         result = await call_tool("get_forecast", {"city": "London", "days": 2})
-
-#         assert len(result) == 1
-#         assert result[0].type == "text"
-#         forecast_data = json.loads(result[0].text)
-#         assert len(forecast_data) == 1
-#         assert forecast_data[0]["temperature"] == 18.5
-#         assert forecast_data[0]["conditions"] == "sunny"
-
-
-# @pytest.mark.anyio
-# async def test_list_tools():
-#     tools = await list_tools()
-#     assert len(tools) == 1
-#     assert tools[0].name == "get_forecast"
-#     assert "city" in tools[0].inputSchema["properties"]

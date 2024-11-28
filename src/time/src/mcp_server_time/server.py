@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 import json
 from typing import Sequence
@@ -35,13 +34,10 @@ class TimeConversionInput(BaseModel):
     time: str
     target_tz_list: list[str]
 
+def get_local_tz(local_tz_override: str | None = None) -> pytz.timezone:
+    return pytz.timezone(local_tz_override) if local_tz_override else get_localzone()
 
 class TimeServer:
-    def __init__(self, local_tz_override: str | None = None):
-        self.local_tz = (
-            pytz.timezone(local_tz_override) if local_tz_override else get_localzone()
-        )
-
     def get_current_time(self, timezone_name: str) -> TimeResult:
         """Get current time in specified timezone"""
         try:
@@ -109,8 +105,8 @@ class TimeServer:
 
 async def serve(local_timezone: str | None = None) -> None:
     server = Server("mcp-time")
-    time_server = TimeServer(local_timezone)
-    local_tz = str(time_server.local_tz)
+    time_server = TimeServer()
+    local_tz = str(get_local_tz(local_timezone))
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -183,7 +179,7 @@ async def serve(local_timezone: str | None = None) -> None:
                 case _:
                     raise ValueError(f"Unknown tool: {name}")
 
-            return [TextContent(type="text", text=json.dumps(result, indent=2))]
+            return [TextContent(type="text", text=json.dumps(result.model_dump(), indent=2))]
 
         except Exception as e:
             raise ValueError(f"Error processing mcp-server-time query: {str(e)}")

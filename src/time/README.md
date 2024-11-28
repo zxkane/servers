@@ -5,8 +5,8 @@ A Model Context Protocol server that provides time and timezone conversion capab
 ### Available Tools
 
 - `get_current_time` - Get current time in a specific timezone or system timezone.
-  - Optional argument: `timezone` (string): IANA timezone name (e.g., 'America/New_York', 'Europe/London')
-  - If timezone is not provided, returns time in system timezone
+  - Required arguments:
+    - `timezone` (string): IANA timezone name (e.g., 'America/New_York', 'Europe/London')
 
 - `convert_time` - Convert time between timezones.
   - Required arguments:
@@ -111,45 +111,25 @@ Example:
 
 ## Example Interactions
 
-1. Get current time (using system timezone):
-```json
-{
-  "name": "get_current_time",
-  "arguments": {}
-}
-```
-Response:
-```json
-{
-  "timezone": "Europe/London",
-  "time": "14:30 BST",
-  "date": "2024-11-25",
-  "full_datetime": "2024-11-25 14:30:00 BST",
-  "is_dst": true
-}
-```
-
-2. Get current time in specific timezone:
+1. Get current time:
 ```json
 {
   "name": "get_current_time",
   "arguments": {
-    "timezone": "America/New_York"
+    "timezone": "Europe/Warsaw"
   }
 }
 ```
 Response:
 ```json
 {
-  "timezone": "America/New_York",
-  "time": "09:30 EDT",
-  "date": "2024-11-25",
-  "full_datetime": "2024-11-25 09:30:00 EDT",
-  "is_dst": true
+  "timezone": "Europe/Warsaw",
+  "datetime": "2024-01-01T13:00:00+01:00",
+  "is_dst": false
 }
 ```
 
-3. Convert time between timezones:
+2. Convert time between timezones:
 ```json
 {
   "name": "convert_time",
@@ -165,30 +145,17 @@ Response:
 {
   "source": {
     "timezone": "America/New_York",
-    "time": "16:30 EDT",
-    "date": "2024-11-25"
+    "datetime": "2024-01-01T12:30:00-05:00",
+    "is_dst": false
   },
   "target": {
     "timezone": "Asia/Tokyo",
-    "time": "05:30 JST",
-    "date": "2024-11-26"
+    "datetime": "2024-01-01T12:30:00+09:00",
+    "is_dst": false
   },
   "time_difference": "+13.0h",
-  "date_changed": true,
-  "day_relation": "next day"
 }
 ```
-
-## Tips for Using IANA Timezone Names
-
-Common timezone formats:
-- North America: `America/New_York`, `America/Los_Angeles`, `America/Chicago`
-- Europe: `Europe/London`, `Europe/Paris`, `Europe/Berlin`
-- Asia: `Asia/Tokyo`, `Asia/Shanghai`, `Asia/Dubai`
-- Pacific: `Pacific/Auckland`, `Pacific/Honolulu`
-- Australia: `Australia/Sydney`, `Australia/Melbourne`
-
-The server will automatically detect and use your system timezone if no specific timezone is provided.
 
 ## Debugging
 
