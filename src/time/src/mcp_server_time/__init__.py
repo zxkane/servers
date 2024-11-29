@@ -1,5 +1,6 @@
 from .server import serve
 
+
 def main():
     """MCP Time Server - Time and timezone conversion functionality for MCP"""
     import argparse

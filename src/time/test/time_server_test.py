@@ -1,9 +1,9 @@
-import os
 
 from freezegun import freeze_time
+from mcp.shared.exceptions import McpError
 import pytest
 
-from mcp_server_time.server import TimeServer, serve
+from mcp_server_time.server import TimeServer
 
 
 @pytest.mark.parametrize(
@@ -82,7 +82,10 @@ def test_get_current_time(test_time, timezone, expected):
 
 def test_get_current_time_with_invalid_timezone():
     time_server = TimeServer()
-    with pytest.raises(ValueError, match=r"Unknown timezone: 'Invalid/Timezone'"):
+    with pytest.raises(
+        McpError,
+        match=r"Invalid timezone: 'No time zone found with key Invalid/Timezone'",
+    ):
         time_server.get_current_time("Invalid/Timezone")
 
 
@@ -93,13 +96,13 @@ def test_get_current_time_with_invalid_timezone():
             "invalid_tz",
             "12:00",
             "Europe/London",
-            "Unknown source timezone: 'invalid_tz'",
+            "Invalid timezone: 'No time zone found with key invalid_tz'",
         ),
         (
             "Europe/Warsaw",
             "12:00",
             "invalid_tz",
-            "Unknown target timezone: 'invalid_tz'",
+            "Invalid timezone: 'No time zone found with key invalid_tz'",
         ),
         (
             "Europe/Warsaw",
@@ -111,7 +114,7 @@ def test_get_current_time_with_invalid_timezone():
 )
 def test_convert_time_errors(source_tz, time_str, target_tz, expected_error):
     time_server = TimeServer()
-    with pytest.raises(ValueError, match=expected_error):
+    with pytest.raises((McpError, ValueError), match=expected_error):
         time_server.convert_time(source_tz, time_str, target_tz)
 
 

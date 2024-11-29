@@ -1,13 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 import json
 from typing import Sequence
 
-import pytz
-from tzlocal import get_localzone
+from zoneinfo import ZoneInfo
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
+from mcp.shared.exceptions import McpError
 
 from pydantic import BaseModel
 
@@ -34,17 +34,29 @@ class TimeConversionInput(BaseModel):
     time: str
     target_tz_list: list[str]
 
-def get_local_tz(local_tz_override: str | None = None) -> pytz.timezone:
-    return pytz.timezone(local_tz_override) if local_tz_override else get_localzone()
+
+def get_local_tz(local_tz_override: str | None = None) -> ZoneInfo:
+    if local_tz_override:
+        return ZoneInfo(local_tz_override)
+
+    # Get local timezone from datetime.now()
+    tzinfo = datetime.now().astimezone(tz=None).tzinfo
+    if tzinfo is not None:
+        return ZoneInfo(str(tzinfo))
+    raise McpError("Could not determine local timezone - tzinfo is None")
+
+
+def get_zoneinfo(timezone_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except Exception as e:
+        raise McpError(f"Invalid timezone: {str(e)}")
+
 
 class TimeServer:
     def get_current_time(self, timezone_name: str) -> TimeResult:
         """Get current time in specified timezone"""
-        try:
-            timezone = pytz.timezone(timezone_name)
-        except pytz.exceptions.UnknownTimeZoneError as e:
-            raise ValueError(f"Unknown timezone: {str(e)}")
-
+        timezone = get_zoneinfo(timezone_name)
         current_time = datetime.now(timezone)
 
         return TimeResult(
@@ -57,15 +69,8 @@ class TimeServer:
         self, source_tz: str, time_str: str, target_tz: str
     ) -> TimeConversionResult:
         """Convert time between timezones"""
-        try:
-            source_timezone = pytz.timezone(source_tz)
-        except pytz.exceptions.UnknownTimeZoneError as e:
-            raise ValueError(f"Unknown source timezone: {str(e)}")
-
-        try:
-            target_timezone = pytz.timezone(target_tz)
-        except pytz.exceptions.UnknownTimeZoneError as e:
-            raise ValueError(f"Unknown target timezone: {str(e)}")
+        source_timezone = get_zoneinfo(source_tz)
+        target_timezone = get_zoneinfo(target_tz)
 
         try:
             parsed_time = datetime.strptime(time_str, "%H:%M").time()
@@ -73,14 +78,19 @@ class TimeServer:
             raise ValueError("Invalid time format. Expected HH:MM [24-hour format]")
 
         now = datetime.now(source_timezone)
-        source_time = source_timezone.localize(
-            datetime(now.year, now.month, now.day, parsed_time.hour, parsed_time.minute)
+        source_time = datetime(
+            now.year,
+            now.month,
+            now.day,
+            parsed_time.hour,
+            parsed_time.minute,
+            tzinfo=source_timezone,
         )
 
         target_time = source_time.astimezone(target_timezone)
-        hours_difference = (
-            target_time.utcoffset() - source_time.utcoffset()
-        ).total_seconds() / 3600
+        source_offset = source_time.utcoffset() or timedelta()
+        target_offset = target_time.utcoffset() or timedelta()
+        hours_difference = (target_offset - source_offset).total_seconds() / 3600
 
         if hours_difference.is_integer():
             time_diff_str = f"{hours_difference:+.1f}h"
@@ -114,7 +124,7 @@ async def serve(local_timezone: str | None = None) -> None:
         return [
             Tool(
                 name=TimeTools.GET_CURRENT_TIME.value,
-                description=f"Get current time in a specific timezones",
+                description="Get current time in a specific timezones",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -128,7 +138,7 @@ async def serve(local_timezone: str | None = None) -> None:
             ),
             Tool(
                 name=TimeTools.CONVERT_TIME.value,
-                description=f"Convert time between timezones",
+                description="Convert time between timezones",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -179,7 +189,9 @@ async def serve(local_timezone: str | None = None) -> None:
                 case _:
                     raise ValueError(f"Unknown tool: {name}")
 
-            return [TextContent(type="text", text=json.dumps(result.model_dump(), indent=2))]
+            return [
+                TextContent(type="text", text=json.dumps(result.model_dump(), indent=2))
+            ]
 
         except Exception as e:
             raise ValueError(f"Error processing mcp-server-time query: {str(e)}")

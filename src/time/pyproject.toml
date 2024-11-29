@@ -4,7 +4,9 @@ version = "0.5.1"
 description = "A Model Context Protocol server providing tools for time queries and timezone conversions for LLMs"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Mariusz 'maledorak' Korzekwa", email = "mariusz@korzekwa.dev" }]
+authors = [
+    { name = "Mariusz 'maledorak' Korzekwa", email = "mariusz@korzekwa.dev" },
+]
 keywords = ["time", "timezone", "mcp", "llm"]
 license = { text = "MIT" }
 classifiers = [
@@ -17,8 +19,7 @@ classifiers = [
 dependencies = [
     "mcp>=1.0.0",
     "pydantic>=2.0.0",
-    "pytz>=2024.2",
-    "tzlocal>=5.2",
+    "tzdata>=2024.2",
 ]
 
 [project.scripts]
@@ -33,4 +34,5 @@ dev-dependencies = [
     "freezegun>=1.5.1",
     "pyright>=1.1.389",
     "pytest>=8.3.3",
+    "ruff>=0.8.1",
 ]
