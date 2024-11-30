@@ -313,7 +313,7 @@ async function handleToolCall(name: string, args: any): Promise<{ toolResult: Ca
         const logs = await page.evaluate(() => {
           Object.assign(console, window.mcpHelper.originalConsole);
           const logs = window.mcpHelper.logs;
-          delete ( window.mcpHelper as any).logs;
+          delete ( window as any).mcpHelper;
           return logs;
         });
 
