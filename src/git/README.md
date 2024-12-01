@@ -53,6 +53,13 @@ Please note that mcp-server-git is currently in early development. The functiona
      - `max_count` (number, optional): Maximum number of commits to show (default: 10)
    - Returns: Array of commit entries with hash, author, date, and message
 
+8. `git_branch`
+   - Creates a new branch
+   - Inputs:
+     - `repo_path` (string): Path to Git repository
+     - `branch_name` (string): Name of the new branch
+     - `start_point` (string, optional): Starting point for the new branch
+   - Returns: Confirmation of branch creation
 
 ## Installation
 
