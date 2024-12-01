@@ -156,6 +156,29 @@ cd path/to/servers/src/git
 npx @modelcontextprotocol/inspector uv run mcp-server-git
 ```
 
+Running `tail -n 20 -f ~/Library/Logs/Claude/mcp*.log` will show the logs from the server and may
+help you debug any issues.
+
+## Development
+
+If you are doing local development, there are two ways to test your changes:
+
+1. Run the MCP inspector to test your changes. See [Debugging](#debugging) for run instructions.
+
+2. Test using the Claude desktop app. Add the following to your `claude_desktop_config.json`:
+
+```json
+"git": {
+  "command": "uv",
+  "args": [
+    "--directory",
+    "/<path to mcp-servers>/mcp-servers/src/git",
+    "run",
+    "mcp-server-git"
+  ]
+}
+```
+
 ## License
 
 This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software, subject to the terms and conditions of the MIT License. For more details, please see the LICENSE file in the project repository.
