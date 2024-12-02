@@ -7,6 +7,8 @@ Thank you for your interest in contributing to the Model Context Protocol (MCP) 
 ### 1. New Servers
 Adding a new server is a valuable way to contribute. Before creating a new server:
 
+> *NOTE* We accept pull requests adding your server to the [README.md](./README.md). We generally **don't** accept servers into the repository.
+
 - Check the [modelcontextprotocol.io](https://modelcontextprotocol.io) documentation
 - Ensure your server doesn't duplicate existing functionality
 - Consider whether your server would be generally useful to others
