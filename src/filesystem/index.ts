@@ -106,6 +106,27 @@ const WriteFileArgsSchema = z.object({
   content: z.string(),
 });
 
+const EditOperation = z.object({
+  startLine: z.number().int().min(1).optional(),  
+  contextLines: z.number().int().min(0).default(3),
+  oldText: z.string(),
+  newText: z.string(),
+  verifyState: z.boolean().default(true),
+  readBeforeEdit: z.boolean().default(false),
+  findAnchor: z.string().optional(),  
+  anchorOffset: z.number().int().default(0), 
+  beforeContext: z.string().optional(), 
+  afterContext: z.string().optional(),  
+  contextRadius: z.number().int().min(0).default(3), 
+  insertMode: z.enum(['replace', 'before', 'after']).default('replace'), 
+  dryRun: z.boolean().default(false), 
+});
+
+const EditFileArgsSchema = z.object({
+  path: z.string(),
+  edits: z.array(EditOperation),
+});
+
 const CreateDirectoryArgsSchema = z.object({
   path: z.string(),
 });
@@ -202,6 +223,166 @@ async function searchFiles(
   return results;
 }
 
+// Line ending detection and normalization utilities
+function detectLineEnding(content: string): string {
+  // Check if the content contains CRLF
+  if (content.includes('\r\n')) {
+    return '\r\n';
+  }
+  // Default to LF
+  return '\n';
+}
+
+function normalizeLineEndings(content: string): string {
+  // Convert all line endings to LF for internal processing
+  return content.replace(/\r\n/g, '\n');
+}
+
+function preserveLineEndings(newContent: string, originalLineEnding: string): string {
+  // Ensure all line endings match the original file
+  if (originalLineEnding === '\r\n') {
+    return newContent.replace(/\n/g, '\r\n');
+  }
+  return newContent;
+}
+
+// Edit preview type
+interface EditPreview {
+  originalContent: string;
+  newContent: string;
+  lineNumber: number;
+  matchedAnchor?: string;
+  contextVerified: boolean;
+}
+
+// File editing utilities
+async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperation>[]): Promise<string | EditPreview[]> {
+  // Read the file and detect its line endings
+  let currentContent = await fs.readFile(filePath, 'utf-8');
+  const originalLineEnding = detectLineEnding(currentContent);
+  
+  // Normalize content for processing
+  currentContent = normalizeLineEndings(currentContent);
+  const previews: EditPreview[] = [];
+  let lines = currentContent.split('\n');
+  
+  // Sort edits by line number in descending order
+  const sortedEdits = [...edits].sort((a, b) => {
+    if (a.startLine && b.startLine) {
+      return b.startLine - a.startLine;
+    }
+    return 0;
+  });
+  
+  for (const edit of sortedEdits) {
+    // Normalize the edit text for comparison
+    const normalizedOldText = normalizeLineEndings(edit.oldText);
+    const normalizedNewText = normalizeLineEndings(edit.newText);
+    
+    let startIdx = edit.startLine ? edit.startLine - 1 : -1;
+    
+    if (edit.findAnchor) {
+      // Normalize anchor text and search in normalized content
+      const normalizedAnchor = normalizeLineEndings(edit.findAnchor);
+      const content = lines.join('\n');
+      const anchorIdx = content.indexOf(normalizedAnchor);
+      if (anchorIdx === -1) {
+        throw new Error(`Anchor text not found: ${edit.findAnchor}`);
+      }
+      const beforeAnchor = content.substring(0, anchorIdx);
+      const anchorLine = beforeAnchor.split('\n').length - 1;
+      startIdx = anchorLine + (edit.anchorOffset || 0);
+    }
+
+    if (startIdx === -1) {
+      throw new Error('No valid edit position found - need either startLine or findAnchor');
+    }
+
+    // Context verification with normalized line endings
+    let contextVerified = true;
+    if (edit.beforeContext || edit.afterContext) {
+      const radius = edit.contextRadius || 3;
+      const beforeText = normalizeLineEndings(lines.slice(Math.max(0, startIdx - radius), startIdx).join('\n'));
+      const afterText = normalizeLineEndings(lines.slice(startIdx + 1, startIdx + radius + 1).join('\n'));
+      
+      if (edit.beforeContext && !beforeText.includes(normalizeLineEndings(edit.beforeContext))) {
+        contextVerified = false;
+      }
+      if (edit.afterContext && !afterText.includes(normalizeLineEndings(edit.afterContext))) {
+        contextVerified = false;
+      }
+      
+      if (!contextVerified && edit.verifyState) {
+        throw new Error(
+          `Context verification failed at line ${startIdx + 1}.\n` +
+          `Expected before context: ${edit.beforeContext}\n` +
+          `Expected after context: ${edit.afterContext}\n` +
+          `Found before context: ${beforeText}\n` +
+          `Found after context: ${afterText}`
+        );
+      }
+    }
+
+    const oldLines = normalizedOldText.split('\n');
+    const newLines = normalizedNewText.split('\n');
+    
+    // Content verification with normalized line endings
+    if (edit.verifyState) {
+      const existingContent = normalizeLineEndings(lines.slice(startIdx, startIdx + oldLines.length).join('\n'));
+      if (existingContent !== normalizedOldText) {
+        throw new Error(
+          `Edit validation failed: Content mismatch at line ${startIdx + 1}.\n` +
+          `Expected:\n${edit.oldText}\n` +
+          `Found:\n${lines.slice(startIdx, startIdx + oldLines.length).join('\n')}`
+        );
+      }
+    }
+
+    if (edit.dryRun) {
+      previews.push({
+        originalContent: preserveLineEndings(lines.slice(startIdx, startIdx + oldLines.length).join('\n'), originalLineEnding),
+        newContent: preserveLineEndings(edit.newText, originalLineEnding),
+        lineNumber: startIdx + 1,
+        matchedAnchor: edit.findAnchor,
+        contextVerified
+      });
+      continue;
+    }
+
+    // Apply the edit based on insertMode
+    switch (edit.insertMode) {
+      case 'before':
+        lines.splice(startIdx, 0, ...newLines);
+        break;
+      case 'after':
+        lines.splice(startIdx + oldLines.length, 0, ...newLines);
+        break;
+      default: // 'replace'
+        lines.splice(startIdx, oldLines.length, ...newLines);
+    }
+
+    let updatedContent = lines.join('\n');
+    
+    // Preserve original line endings when writing
+    updatedContent = preserveLineEndings(updatedContent, originalLineEnding);
+    
+    // Re-read file if requested
+    if (edit.readBeforeEdit) {
+      await fs.writeFile(filePath, updatedContent, 'utf-8');
+      currentContent = await fs.readFile(filePath, 'utf-8');
+      currentContent = normalizeLineEndings(currentContent);
+      lines = currentContent.split('\n');
+    }
+  }
+  
+  if (edits.some(e => e.dryRun)) {
+    return previews;
+  }
+  
+  // Preserve original line endings in final content
+  return preserveLineEndings(lines.join('\n'), originalLineEnding);
+}
+
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -232,6 +413,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           "Use with caution as it will overwrite existing files without warning. " +
           "Handles text content with proper encoding. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(WriteFileArgsSchema) as ToolInput,
+      },
+      {
+        name: "edit_file",
+        description:
+          "Make selective edits to a text file with advanced pattern matching and validation. " +
+          "Supports multiple edit modes:\n" +
+          "1. Line-based: Use startLine to specify exact positions\n" +
+          "2. Pattern-based: Use findAnchor to locate edit points by matching text\n" +
+          "3. Context-aware: Verify surrounding text with beforeContext/afterContext\n\n" +
+          "Features:\n" +
+          "- Dry run mode for previewing changes (dryRun: true)\n" +
+          "- Multiple insertion modes: 'replace', 'before', 'after'\n" +
+          "- Anchor-based positioning with offset support\n" +
+          "- Automatic state refresh between edits (readBeforeEdit)\n" +
+          "- Context verification to ensure edit safety\n\n" +
+          "Recommended workflow:\n" +
+          "1. Use dryRun to preview changes\n" +
+          "2. Use findAnchor for resilient positioning\n" +
+          "3. Enable readBeforeEdit for multi-step changes\n" +
+          "4. Verify context when position is critical\n\n" +
+          "This is safer than complete file overwrites as it verifies existing content " +
+          "and supports granular changes. Only works within allowed directories.",
+        inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
       },
       {
         name: "create_directory",
@@ -343,6 +547,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await fs.writeFile(validPath, parsed.data.content, "utf-8");
         return {
           content: [{ type: "text", text: `Successfully wrote to ${parsed.data.path}` }],
+        };
+      }
+
+      case "edit_file": {
+        const parsed = EditFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for edit_file: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        const result = await applyFileEdits(validPath, parsed.data.edits);
+        
+        // If it's a dry run, format the previews
+        if (Array.isArray(result)) {
+          const previewText = result.map(preview => 
+            `Line ${preview.lineNumber}:\n` +
+            `${preview.matchedAnchor ? `Matched anchor: ${preview.matchedAnchor}\n` : ''}` +
+            `Context verified: ${preview.contextVerified}\n` +
+            `Original:\n${preview.originalContent}\n` +
+            `New:\n${preview.newContent}\n`
+          ).join('\n---\n');
+          
+          return {
+            content: [{ type: "text", text: `Edit preview:\n${previewText}` }],
+          };
+        }
+
+        // Otherwise write the changes
+        await fs.writeFile(validPath, result, "utf-8");
+        return {
+          content: [{ type: "text", text: `Successfully applied edits to ${parsed.data.path}` }],
         };
       }
 
