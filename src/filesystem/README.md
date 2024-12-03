@@ -37,33 +37,19 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
     - `content` (string): File content
 
 - **edit_file**
-  - Make selective edits to files with advanced pattern matching
+  - Make selective edits using search and replace
   - Features:
-    - Multiple positioning modes:
-      - Line-based: Specify exact line numbers
-      - Pattern-based: Find positions using anchor text
-      - Context-aware: Verify surrounding content
-    - Insert modes: 'replace', 'before', or 'after' content
-    - Dry run preview of changes
-    - Cross-platform line ending support (CRLF/LF)
-    - Git-friendly content verification
+    - Simple substring matching for finding text
+    - Git-style preview format for changes
+    - Preview changes with dry run mode
+    - Preserves original file formatting and indentation
   - Inputs:
     - `path` (string): File to edit
     - `edits` (array): List of edit operations
-      - `startLine?` (number): Line number for edit (optional)
-      - `findAnchor?` (string): Text to locate edit position (optional)
-      - `anchorOffset` (number): Lines to offset from anchor (default: 0)
-      - `oldText` (string): Content to replace/verify
-      - `newText` (string): New content to insert
-      - `insertMode` (string): 'replace', 'before', or 'after' (default: 'replace')
-      - `beforeContext?` (string): Expected content before edit point (optional)
-      - `afterContext?` (string): Expected content after edit point (optional)
-      - `contextRadius` (number): Lines to check for context (default: 3)
-      - `verifyState` (boolean): Verify content matches before editing (default: true)
-      - `readBeforeEdit` (boolean): Refresh file state between edits (default: false)
-      - `dryRun` (boolean): Preview changes without applying them (default: false)
+      - `oldText` (string): Text to search for (can be substring)
+      - `newText` (string): Text to replace with
+      - `dryRun` (boolean): Preview changes without applying (default: false)
   - Returns preview information for dry runs, otherwise applies changes
-  - Preserves original line endings and handles Git auto CRLF/LF
 
 - **create_directory**
   - Create new directory or ensure it exists
