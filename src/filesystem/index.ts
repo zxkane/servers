@@ -107,30 +107,12 @@ const WriteFileArgsSchema = z.object({
 });
 
 const EditOperation = z.object({
-  // Primary edit specification
-  oldText: z.string().describe('Exact text to match, including whitespace/formatting'),
-  newText: z.string().describe('Replacement text with desired formatting'),
-  
-  // Location finding (one of these should be provided)
-  startLine: z.number().int().min(1).optional().describe('Exact line number to start edit'),
-  findAnchor: z.string().optional().describe('Text to search for to locate edit position'),
-  
-  // Edit behavior
-  insertMode: z.enum(['replace', 'before', 'after']).default('replace')
-    .describe('Whether to replace matched text or insert before/after it'),
-  verifyState: z.boolean().default(true)
-    .describe('Whether to verify exact text matches before editing'),
-  readBeforeEdit: z.boolean().default(false)
-    .describe('Whether to re-read file between multiple edits'),
-  
-  // Optional context verification
-  beforeContext: z.string().optional().describe('Text that should appear before edit point'),
-  afterContext: z.string().optional().describe('Text that should appear after edit point'),
-  contextRadius: z.number().int().min(0).default(3)
-    .describe('Number of lines to check for context matches'),
-  
-  // Preview mode
-  dryRun: z.boolean().default(false).describe('Preview changes without applying them'),
+  // The text to search for
+  oldText: z.string().describe('Text to search for - can be a substring of the target'),
+  // The new text to replace with
+  newText: z.string().describe('Text to replace the found text with'),
+  // Optional: preview changes without applying them
+  dryRun: z.boolean().default(false).describe('Preview changes using git-style diff format')
 });
 
 const EditFileArgsSchema = z.object({
@@ -234,131 +216,59 @@ async function searchFiles(
   return results;
 }
 
-// Content normalization utilities
-// Used only for fuzzy matching of anchor text and context verification
-// Does not affect the actual content replacement
-function normalizeForComparison(content: string): string {
-  // Normalize line endings and whitespace for comparison only
-  return content.replace(/\r\n/g, '\n')
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n');
-}
-
 // Edit preview type
 interface EditPreview {
-  originalContent: string;
-  newContent: string;
+  original: string;
+  modified: string;
   lineNumber: number;
-  matchedAnchor?: string;
-  contextVerified: boolean;
+  preview: string;  // Git-style diff format
 }
 
 // File editing utilities
 async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperation>[]): Promise<string | EditPreview[]> {
-  // Read the file content
-  let currentContent = await fs.readFile(filePath, 'utf-8');
+  let content = await fs.readFile(filePath, 'utf-8');
   const previews: EditPreview[] = [];
   
   for (const edit of edits) {
-    let editContent = currentContent;
-    let editPosition = -1;
-    
-    // Find the edit position using anchor if provided
-    if (edit.findAnchor) {
-      const normalizedContent = normalizeForComparison(currentContent);
-      const normalizedAnchor = normalizeForComparison(edit.findAnchor);
-      const anchorPos = normalizedContent.indexOf(normalizedAnchor);
-      
-      if (anchorPos === -1) {
-        throw new Error(`Edit failed - anchor text not found: ${edit.findAnchor} in ${filePath}`);
-      }
-      
-      // Map normalized position back to original content
-      editPosition = currentContent.slice(0, anchorPos).split('\n').length - 1;
-    } else if (edit.startLine) {
-      editPosition = edit.startLine - 1;
-    } else {
-      throw new Error(`Edit failed - no valid position found in ${filePath}. Operation requires either startLine or findAnchor`);
-    }
-    
-    // Verify context if provided
-    if (edit.beforeContext || edit.afterContext) {
-      const lines = currentContent.split('\n');
-      const radius = edit.contextRadius || 3;
-      const beforeText = lines.slice(Math.max(0, editPosition - radius), editPosition).join('\n');
-      const afterText = lines.slice(editPosition + 1, editPosition + radius + 1).join('\n');
-      
-      let contextVerified = true;
-      if (edit.beforeContext && !normalizeForComparison(beforeText).includes(normalizeForComparison(edit.beforeContext))) {
-        contextVerified = false;
-      }
-      if (edit.afterContext && !normalizeForComparison(afterText).includes(normalizeForComparison(edit.afterContext))) {
-        contextVerified = false;
-      }
-      
-      if (!contextVerified && edit.verifyState) {
-        throw new Error(
-          `Edit failed - context verification failed in ${filePath} at line ${editPosition + 1}\n` +
-          `Expected before context: ${edit.beforeContext}\n` +
-          `Expected after context: ${edit.afterContext}\n` +
-          `Found before context: ${beforeText}\n` +
-          `Found after context: ${afterText}\n`
-        );
-      }
-    }
-    
-    // Look for exact match of oldText
-    const searchStr = edit.oldText;
-    const searchPos = currentContent.indexOf(searchStr);
-    
-    if (searchPos === -1 && edit.verifyState) {
+    const pos = content.indexOf(edit.oldText);
+    if (pos === -1) {
       throw new Error(
-        `Edit failed - content not found in ${filePath}\n` +
-        `Expected to find:\n${searchStr}\n`
+        `Search text not found in ${filePath}:\n${edit.oldText}`
       );
     }
     
+    // Calculate line number for reporting
+    const lineNumber = content.slice(0, pos).split(/\r?\n/).length;
+    
     if (edit.dryRun) {
+      // Create git-style diff preview
+      const preview = [
+        `@@ line ${lineNumber} @@`,
+        '<<<<<<< ORIGINAL',
+        edit.oldText,
+        '=======',
+        edit.newText,
+        '>>>>>>> MODIFIED'
+      ].join('\n');
+      
       previews.push({
-        originalContent: searchStr,
-        newContent: edit.newText,
-        lineNumber: editPosition + 1,
-        matchedAnchor: edit.findAnchor,
-        contextVerified: true
+        original: edit.oldText,
+        modified: edit.newText,
+        lineNumber,
+        preview
       });
       continue;
     }
     
-    // Apply the edit based on insertMode
-    switch (edit.insertMode) {
-      case 'before':
-        editContent = currentContent.slice(0, searchPos) + 
-          edit.newText + currentContent.slice(searchPos);
-        break;
-      case 'after':
-        editContent = currentContent.slice(0, searchPos + searchStr.length) + 
-          edit.newText + currentContent.slice(searchPos + searchStr.length);
-        break;
-      default: // 'replace'
-        editContent = currentContent.slice(0, searchPos) + 
-          edit.newText + currentContent.slice(searchPos + searchStr.length);
-    }
-    
-    // Update content for next edit
-    if (edit.readBeforeEdit) {
-      await fs.writeFile(filePath, editContent, 'utf-8');
-      currentContent = await fs.readFile(filePath, 'utf-8');
-    } else {
-      currentContent = editContent;
-    }
+    // Apply the edit
+    content = content.slice(0, pos) + edit.newText + content.slice(pos + edit.oldText.length);
   }
   
   if (edits.some(e => e.dryRun)) {
     return previews;
   }
   
-  return currentContent;
+  return content;
 }
 
 // Tool handlers
@@ -395,24 +305,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "edit_file",
         description:
-          "Make selective edits to a text file with advanced pattern matching and validation. " +
-          "Supports multiple edit modes:\n" +
-          "1. Line-based: Use startLine to specify exact positions\n" +
-          "2. Pattern-based: Use findAnchor to locate edit points by matching text\n" +
-          "3. Context-aware: Verify surrounding text with beforeContext/afterContext\n\n" +
-          "Features:\n" +
-          "- Dry run mode for previewing changes (dryRun: true)\n" +
-          "- Multiple insertion modes: 'replace', 'before', 'after'\n" +
-          "- Anchor-based positioning with offset support\n" +
-          "- Automatic state refresh between edits (readBeforeEdit)\n" +
-          "- Context verification to ensure edit safety\n\n" +
-          "Recommended workflow:\n" +
-          "1. Use dryRun to preview changes\n" +
-          "2. Use findAnchor for resilient positioning\n" +
-          "3. Enable readBeforeEdit for multi-step changes\n" +
-          "4. Verify context when position is critical\n\n" +
-          "This is safer than complete file overwrites as it verifies existing content " +
-          "and supports granular changes. Only works within allowed directories.",
+          "Make selective edits to a text file using simple search and replace with git-style preview format. " +
+          "Finds text to replace using substring matching and shows changes in a familiar git-diff format. " +
+          "Use dry run mode to preview changes before applying them. " +
+          "Only works within allowed directories.",
         inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
       },
       {
@@ -538,14 +434,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         
         // If it's a dry run, format the previews
         if (Array.isArray(result)) {
-          const previewText = result.map(preview => 
-            `Line ${preview.lineNumber}:\n` +
-            `${preview.matchedAnchor ? `Matched anchor: ${preview.matchedAnchor}\n` : ''}` +
-            `Context verified: ${preview.contextVerified}\n` +
-            `Original:\n${preview.originalContent}\n` +
-            `New:\n${preview.newContent}\n`
-          ).join('\n---\n');
-          
+          const previewText = result.map(preview => preview.preview).join('\n\n');
           return {
             content: [{ type: "text", text: `Edit preview:\n${previewText}` }],
           };
