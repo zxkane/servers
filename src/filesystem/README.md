@@ -42,7 +42,11 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
     - Simple substring matching for finding text
     - Git-style preview format for changes
     - Preview changes with dry run mode
-    - Preserves original file formatting and indentation
+    - Preserves consistent indentation patterns
+  - Limitations:
+    - Intended for content changes, not code formatting
+    - Mixed tabs/spaces can cause pattern matching issues
+    - Use code formatters (e.g., Prettier, ESLint) before content edits
   - Inputs:
     - `path` (string): File to edit
     - `edits` (array): List of edit operations
