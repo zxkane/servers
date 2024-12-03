@@ -46,6 +46,7 @@ A growing set of community-developed and maintained servers demonstrates various
 > **Note:** Community servers are **untested** and should be used at **your own risk**. They are not affiliated with or endorsed by Anthropic.
 
 - **[MCP Installer](https://github.com/anaisbetts/mcp-installer)** - This server is a server that installs other MCP servers for you.
+- **[Spotify MCP](https://github.com/varunneal/spotify-mcp)** - This MCP allows an LLM to play and use Spotify. 
 
 ## 📚 Resources
 
