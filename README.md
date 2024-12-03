@@ -48,6 +48,7 @@ A growing set of community-developed and maintained servers demonstrates various
 - **[MCP Installer](https://github.com/anaisbetts/mcp-installer)** - This server is a server that installs other MCP servers for you.
 - **[Spotify MCP](https://github.com/varunneal/spotify-mcp)** - This MCP allows an LLM to play and use Spotify. 
 - **[Inoyu](https://github.com/sergehuber/inoyu-mcp-unomi-server)** - Interact with an Apache Unomi CDP customer data platform to retrieve and update customer profiles
+- **[Todoist](https://github.com/abhiz123/todoist-mcp-server)** - Interact with Todoist to manage your tasks.
 
 ## 📚 Resources
 
