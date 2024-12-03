@@ -301,20 +301,21 @@ async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperat
     let startIdx = edit.startLine ? edit.startLine - 1 : -1;
     
     if (edit.findAnchor) {
-      // Use normalized comparison for finding anchor
-      const content = lines.join('\n');
-      const normalizedContent = normalizeForComparison(content);
+      // Use line-by-line comparison for accurate anchor matching
+      let foundLine = -1;
       const normalizedAnchor = normalizeForComparison(edit.findAnchor);
-      const anchorIdx = normalizedContent.indexOf(normalizedAnchor);
       
-      if (anchorIdx === -1) {
+      for (let i = 0; i < lines.length; i++) {
+        const normalizedLine = normalizeForComparison(lines[i]);
+        if (normalizedLine.includes(normalizedAnchor)) {
+          foundLine = i;
+          break;
+        }
+      }
+      if (foundLine === -1) {
         throw new Error(`Edit failed - anchor text not found: ${edit.findAnchor} in ${filePath}`);
       }
-      
-      // Map normalized index back to original content
-      const beforeAnchor = content.substring(0, content.length * anchorIdx / normalizedContent.length);
-      const anchorLine = beforeAnchor.split(/\r?\n/).length - 1;
-      startIdx = anchorLine + (edit.anchorOffset || 0);
+      startIdx = foundLine + (edit.anchorOffset || 0);
     }
 
     if (startIdx === -1) {
