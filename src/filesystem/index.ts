@@ -224,6 +224,12 @@ async function searchFiles(
 }
 
 // Line ending detection and normalization utilities
+// These functions ensure consistent behavior across different platforms and Git configurations.
+// They handle the following scenarios:
+// - Windows CRLF (\r\n) vs Unix LF (\n) line endings
+// - Git's core.autocrlf setting converting line endings
+// - Mixed line endings within the same file
+// This makes the edit functionality reliable regardless of the development environment.
 function detectLineEnding(content: string): string {
   // Check if the content contains CRLF
   if (content.includes('\r\n')) {
