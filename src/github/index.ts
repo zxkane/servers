@@ -473,7 +473,7 @@ async function createRepository(
 async function listIssues(
   owner: string,
   repo: string,
-  options: z.infer<typeof ListIssuesOptionsSchema>
+  options: Omit<z.infer<typeof ListIssuesOptionsSchema>, 'owner' | 'repo'>
 ): Promise<GitHubIssue[]> {
   const url = new URL(`https://api.github.com/repos/${owner}/${repo}/issues`);
   
@@ -505,7 +505,7 @@ async function updateIssue(
   owner: string,
   repo: string,
   issueNumber: number,
-  options: z.infer<typeof UpdateIssueOptionsSchema>
+  options: Omit<z.infer<typeof UpdateIssueOptionsSchema>, 'owner' | 'repo' | 'issue_number'>
 ): Promise<GitHubIssue> {
   const response = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`,
