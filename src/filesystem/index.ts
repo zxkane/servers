@@ -107,19 +107,30 @@ const WriteFileArgsSchema = z.object({
 });
 
 const EditOperation = z.object({
-  startLine: z.number().int().min(1).optional(),  
-  contextLines: z.number().int().min(0).default(3),
-  oldText: z.string(),
-  newText: z.string(),
-  verifyState: z.boolean().default(true),
-  readBeforeEdit: z.boolean().default(false),
-  findAnchor: z.string().optional(),  
-  anchorOffset: z.number().int().default(0), 
-  beforeContext: z.string().optional(), 
-  afterContext: z.string().optional(),  
-  contextRadius: z.number().int().min(0).default(3), 
-  insertMode: z.enum(['replace', 'before', 'after']).default('replace'), 
-  dryRun: z.boolean().default(false), 
+  // Primary edit specification
+  oldText: z.string().describe('Exact text to match, including whitespace/formatting'),
+  newText: z.string().describe('Replacement text with desired formatting'),
+  
+  // Location finding (one of these should be provided)
+  startLine: z.number().int().min(1).optional().describe('Exact line number to start edit'),
+  findAnchor: z.string().optional().describe('Text to search for to locate edit position'),
+  
+  // Edit behavior
+  insertMode: z.enum(['replace', 'before', 'after']).default('replace')
+    .describe('Whether to replace matched text or insert before/after it'),
+  verifyState: z.boolean().default(true)
+    .describe('Whether to verify exact text matches before editing'),
+  readBeforeEdit: z.boolean().default(false)
+    .describe('Whether to re-read file between multiple edits'),
+  
+  // Optional context verification
+  beforeContext: z.string().optional().describe('Text that should appear before edit point'),
+  afterContext: z.string().optional().describe('Text that should appear after edit point'),
+  contextRadius: z.number().int().min(0).default(3)
+    .describe('Number of lines to check for context matches'),
+  
+  // Preview mode
+  dryRun: z.boolean().default(false).describe('Preview changes without applying them'),
 });
 
 const EditFileArgsSchema = z.object({
@@ -224,53 +235,14 @@ async function searchFiles(
 }
 
 // Content normalization utilities
-// These functions handle:
-// - Line ending normalization (CRLF vs LF)
-// - Indentation preservation and normalization
-// - Git's core.autocrlf setting
-// - Mixed line endings
-// This makes the edit functionality reliable across different environments and formatting styles
-
+// Used only for fuzzy matching of anchor text and context verification
+// Does not affect the actual content replacement
 function normalizeForComparison(content: string): string {
-  // First normalize line endings
-  let normalized = content.replace(/\r\n/g, '\n');
-  // Remove leading/trailing whitespace from each line while preserving empty lines
-  normalized = normalized.split('\n')
+  // Normalize line endings and whitespace for comparison only
+  return content.replace(/\r\n/g, '\n')
+    .split('\n')
     .map(line => line.trim())
     .join('\n');
-  return normalized;
-}
-
-function preserveIndentation(newContent: string, originalContent: string): string {
-  const originalLines = originalContent.split(/\r?\n/);
-  const indentMatch = originalLines.find(line => line.trim())?.match(/^\s*/);
-  const baseIndent = indentMatch ? indentMatch[0] : '';
-  
-  return newContent.split(/\r?\n/)
-    .map(line => line.trim() ? baseIndent + line : line)
-    .join(originalContent.includes('\r\n') ? '\r\n' : '\n');
-}
-
-function detectLineEnding(content: string): string {
-  // Check if the content contains CRLF
-  if (content.includes('\r\n')) {
-    return '\r\n';
-  }
-  // Default to LF
-  return '\n';
-}
-
-function normalizeLineEndings(content: string): string {
-  // Convert all line endings to LF for internal processing
-  return content.replace(/\r\n/g, '\n');
-}
-
-function preserveLineEndings(newContent: string, originalLineEnding: string): string {
-  // Ensure all line endings match the original file
-  if (originalLineEnding === '\r\n') {
-    return newContent.replace(/\n/g, '\r\n');
-  }
-  return newContent;
 }
 
 // Edit preview type
@@ -287,48 +259,37 @@ async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperat
   // Read the file content
   let currentContent = await fs.readFile(filePath, 'utf-8');
   const previews: EditPreview[] = [];
-  let lines = currentContent.split(/\r?\n/);
   
-  // Sort edits by line number in descending order
-  const sortedEdits = [...edits].sort((a, b) => {
-    if (a.startLine && b.startLine) {
-      return b.startLine - a.startLine;
-    }
-    return 0;
-  });
-  
-  for (const edit of sortedEdits) {
-    let startIdx = edit.startLine ? edit.startLine - 1 : -1;
+  for (const edit of edits) {
+    let editContent = currentContent;
+    let editPosition = -1;
     
+    // Find the edit position using anchor if provided
     if (edit.findAnchor) {
-      // Use line-by-line comparison for accurate anchor matching
-      let foundLine = -1;
+      const normalizedContent = normalizeForComparison(currentContent);
       const normalizedAnchor = normalizeForComparison(edit.findAnchor);
+      const anchorPos = normalizedContent.indexOf(normalizedAnchor);
       
-      for (let i = 0; i < lines.length; i++) {
-        const normalizedLine = normalizeForComparison(lines[i]);
-        if (normalizedLine.includes(normalizedAnchor)) {
-          foundLine = i;
-          break;
-        }
-      }
-      if (foundLine === -1) {
+      if (anchorPos === -1) {
         throw new Error(`Edit failed - anchor text not found: ${edit.findAnchor} in ${filePath}`);
       }
-      startIdx = foundLine + (edit.anchorOffset || 0);
-    }
-
-    if (startIdx === -1) {
+      
+      // Map normalized position back to original content
+      editPosition = currentContent.slice(0, anchorPos).split('\n').length - 1;
+    } else if (edit.startLine) {
+      editPosition = edit.startLine - 1;
+    } else {
       throw new Error(`Edit failed - no valid position found in ${filePath}. Operation requires either startLine or findAnchor`);
     }
-
-    // Context verification with normalized comparison
-    let contextVerified = true;
+    
+    // Verify context if provided
     if (edit.beforeContext || edit.afterContext) {
+      const lines = currentContent.split('\n');
       const radius = edit.contextRadius || 3;
-      const beforeText = lines.slice(Math.max(0, startIdx - radius), startIdx).join('\n');
-      const afterText = lines.slice(startIdx + 1, startIdx + radius + 1).join('\n');
+      const beforeText = lines.slice(Math.max(0, editPosition - radius), editPosition).join('\n');
+      const afterText = lines.slice(editPosition + 1, editPosition + radius + 1).join('\n');
       
+      let contextVerified = true;
       if (edit.beforeContext && !normalizeForComparison(beforeText).includes(normalizeForComparison(edit.beforeContext))) {
         contextVerified = false;
       }
@@ -338,67 +299,58 @@ async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperat
       
       if (!contextVerified && edit.verifyState) {
         throw new Error(
-          `Edit failed - context verification failed in ${filePath} at line ${startIdx + 1}\n` +
+          `Edit failed - context verification failed in ${filePath} at line ${editPosition + 1}\n` +
           `Expected before context: ${edit.beforeContext}\n` +
           `Expected after context: ${edit.afterContext}\n` +
           `Found before context: ${beforeText}\n` +
-          `Found after context: ${afterText}\n` +
-          `Note: Indentation and line endings are normalized during comparison`
+          `Found after context: ${afterText}\n`
         );
       }
     }
-
-    const oldLines = edit.oldText.split(/\r?\n/);
-    const newLines = edit.newText.split(/\r?\n/);
     
-    // Content verification with normalized comparison
-    if (edit.verifyState) {
-      const existingContent = lines.slice(startIdx, startIdx + oldLines.length).join('\n');
-      if (normalizeForComparison(existingContent) !== normalizeForComparison(edit.oldText)) {
-        throw new Error(
-          `Edit failed - content mismatch in ${filePath} at line ${startIdx + 1}\n` +
-          `Expected:\n${edit.oldText}\n` +
-          `Found:\n${existingContent}\n` +
-          `Note: Indentation and line endings are normalized during comparison`
-        );
-      }
+    // Look for exact match of oldText
+    const searchStr = edit.oldText;
+    const searchPos = currentContent.indexOf(searchStr);
+    
+    if (searchPos === -1 && edit.verifyState) {
+      throw new Error(
+        `Edit failed - content not found in ${filePath}\n` +
+        `Expected to find:\n${searchStr}\n`
+      );
     }
-
+    
     if (edit.dryRun) {
-      const originalContent = lines.slice(startIdx, startIdx + oldLines.length).join('\n');
       previews.push({
-        originalContent,
-        newContent: preserveIndentation(edit.newText, originalContent),
-        lineNumber: startIdx + 1,
+        originalContent: searchStr,
+        newContent: edit.newText,
+        lineNumber: editPosition + 1,
         matchedAnchor: edit.findAnchor,
-        contextVerified
+        contextVerified: true
       });
       continue;
     }
-
-    // Preserve indentation when applying edits
-    const originalSegment = lines.slice(startIdx, startIdx + oldLines.length).join('\n');
-    const indentedNewContent = preserveIndentation(edit.newText, originalSegment);
-    const newContentLines = indentedNewContent.split(/\r?\n/);
-
+    
     // Apply the edit based on insertMode
     switch (edit.insertMode) {
       case 'before':
-        lines.splice(startIdx, 0, ...newContentLines);
+        editContent = currentContent.slice(0, searchPos) + 
+          edit.newText + currentContent.slice(searchPos);
         break;
       case 'after':
-        lines.splice(startIdx + oldLines.length, 0, ...newContentLines);
+        editContent = currentContent.slice(0, searchPos + searchStr.length) + 
+          edit.newText + currentContent.slice(searchPos + searchStr.length);
         break;
       default: // 'replace'
-        lines.splice(startIdx, oldLines.length, ...newContentLines);
+        editContent = currentContent.slice(0, searchPos) + 
+          edit.newText + currentContent.slice(searchPos + searchStr.length);
     }
-
-    // Re-read file if requested
+    
+    // Update content for next edit
     if (edit.readBeforeEdit) {
-      const joinedContent = lines.join('\n');
-      await fs.writeFile(filePath, joinedContent, 'utf-8');
+      await fs.writeFile(filePath, editContent, 'utf-8');
       currentContent = await fs.readFile(filePath, 'utf-8');
-      lines = currentContent.split(/\r?\n/);
+    } else {
+      currentContent = editContent;
     }
   }
   
@@ -406,8 +358,7 @@ async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperat
     return previews;
   }
   
-  // Join with the original line ending style
-  return lines.join(detectLineEnding(currentContent));
+  return currentContent;
 }
 
 // Tool handlers
