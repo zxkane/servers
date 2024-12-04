@@ -111,13 +111,13 @@ const EditOperation = z.object({
   oldText: z.string().describe('Text to search for - can be a substring of the target'),
   // The new text to replace with
   newText: z.string().describe('Text to replace the found text with'),
-  // Optional: preview changes without applying them
-  dryRun: z.boolean().default(false).describe('Preview changes using git-style diff format')
 });
 
 const EditFileArgsSchema = z.object({
   path: z.string(),
   edits: z.array(EditOperation),
+  // Optional: preview changes without applying them
+  dryRun: z.boolean().default(false).describe('Preview changes using git-style diff format')
 });
 
 const CreateDirectoryArgsSchema = z.object({
@@ -225,7 +225,7 @@ interface EditPreview {
 }
 
 // File editing utilities
-async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperation>[]): Promise<string | EditPreview[]> {
+async function applyFileEdits(filePath: string, edits: Array<{oldText: string, newText: string}>, dryRun: boolean = false): Promise<string | EditPreview[]> {
   let content = await fs.readFile(filePath, 'utf-8');
   const previews: EditPreview[] = [];
   
@@ -237,38 +237,29 @@ async function applyFileEdits(filePath: string, edits: z.infer<typeof EditOperat
       );
     }
     
-    // Calculate line number for reporting
     const lineNumber = content.slice(0, pos).split(/\r?\n/).length;
+    const preview = [
+      `@@ line ${lineNumber} @@`,
+      '<<<<<<< ORIGINAL',
+      edit.oldText,
+      '=======',
+      edit.newText,
+      '>>>>>>> MODIFIED'
+    ].join('\n');
     
-    if (edit.dryRun) {
-      // Create git-style diff preview
-      const preview = [
-        `@@ line ${lineNumber} @@`,
-        '<<<<<<< ORIGINAL',
-        edit.oldText,
-        '=======',
-        edit.newText,
-        '>>>>>>> MODIFIED'
-      ].join('\n');
-      
-      previews.push({
-        original: edit.oldText,
-        modified: edit.newText,
-        lineNumber,
-        preview
-      });
-      continue;
+    previews.push({
+      original: edit.oldText,
+      modified: edit.newText,
+      lineNumber,
+      preview
+    });
+    
+    if (!dryRun) {
+      content = content.slice(0, pos) + edit.newText + content.slice(pos + edit.oldText.length);
     }
-    
-    // Apply the edit
-    content = content.slice(0, pos) + edit.newText + content.slice(pos + edit.oldText.length);
   }
   
-  if (edits.some(e => e.dryRun)) {
-    return previews;
-  }
-  
-  return content;
+  return dryRun ? previews : content;
 }
 
 // Tool handlers
@@ -430,18 +421,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for edit_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        const result = await applyFileEdits(validPath, parsed.data.edits);
+        const result = await applyFileEdits(validPath, parsed.data.edits, parsed.data.dryRun);
         
         // If it's a dry run, format the previews
-        if (Array.isArray(result)) {
-          const previewText = result.map(preview => preview.preview).join('\n\n');
+        if (parsed.data.dryRun) {
+          const previewText = (result as EditPreview[]).map(preview => preview.preview).join('\n\n');
           return {
             content: [{ type: "text", text: `Edit preview:\n${previewText}` }],
           };
         }
-
-        // Otherwise write the changes
-        await fs.writeFile(validPath, result, "utf-8");
+      
+        await fs.writeFile(validPath, result as string, "utf-8");
         return {
           content: [{ type: "text", text: `Successfully applied edits to ${parsed.data.path}` }],
         };
