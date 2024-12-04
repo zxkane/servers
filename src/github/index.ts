@@ -18,6 +18,7 @@ import {
   GitHubSearchResponseSchema,
   GitHubTreeSchema,
   GitHubCommitSchema,
+  GitHubListCommitsSchema,
   CreateRepositoryOptionsSchema,
   CreateIssueOptionsSchema,
   CreatePullRequestOptionsSchema,
@@ -42,7 +43,8 @@ import {
   CreatePullRequestSchema,
   ForkRepositorySchema,
   CreateBranchSchema,
-  ListCommitsSchema
+  ListCommitsSchema,
+  GitHubListCommits
 } from './schemas.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -474,7 +476,7 @@ async function listCommits(
   page: number = 1,
   perPage: number = 30,
   sha?: string,
-): Promise<GitHubCommit[]> {
+): Promise<GitHubListCommits> {
   const url = new URL(`https://api.github.com/repos/${owner}/${repo}/commits`);
   url.searchParams.append("page", page.toString());
   url.searchParams.append("per_page", perPage.toString());
@@ -499,7 +501,7 @@ async function listCommits(
     throw new Error(`GitHub API error: ${response.statusText}`);
   }
 
-  return GitHubCommitSchema.array().parse(await response.json());
+  return GitHubListCommitsSchema.parse(await response.json());
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
