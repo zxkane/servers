@@ -308,6 +308,15 @@ export const SearchRepositoriesSchema = z.object({
   perPage: z.number().optional().describe("Number of results per page (default: 30, max: 100)")
 });
 
+export const ListCommitsSchema = z.object({
+  owner: z.string().describe("Repository owner (username or organization)"),
+  repo: z.string().describe("Repository name"),
+  page: z.number().optional().describe("Page number for pagination (default: 1)"),
+  perPage: z.number().optional().describe("Number of results per page (default: 30, max: 100)"),
+  sha: z.string().optional()
+    .describe("SHA of the file being replaced (required when updating existing files)")
+});
+
 export const CreateRepositorySchema = z.object({
   name: z.string().describe("Repository name"),
   description: z.string().optional().describe("Repository description"),
