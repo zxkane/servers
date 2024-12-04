@@ -102,6 +102,16 @@ MCP Server for the GitHub API, enabling file operations, repository management, 
      - `from_branch` (optional string): Source branch (defaults to repo default)
    - Returns: Created branch reference
 
+10. `list_commits`
+   - Gets commits of a branch in a repository
+   - Inputs:
+     - `owner` (string): Repository owner
+     - `repo` (string): Repository name
+     - `page` (optional string): page number
+     - `per_page` (optional string): number of record per page
+     - `sha` (optional string): branch name
+   - Returns: List of commits
+
 ## Setup
 
 ### Personal Access Token
