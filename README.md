@@ -20,6 +20,9 @@ Each MCP server is implemented with either the [Typescript MCP SDK](https://gith
 - **[Brave Search](src/brave-search)** - Web and local search using Brave's Search API
 - **[Google Maps](src/google-maps)** - Location services, directions, and place details
 - **[Fetch](src/fetch)** - Web content fetching and conversion for efficient LLM usage
+- **[Sequential Thinking](src/sequential-thinking)** - Dynamic and reflective problem-solving through thought sequences
+- **[EverArt](src/everart)** - AI image generation using various models
+- **[AWS KB Retrieval](src/aws-kb-retrieval)** - Retrieval from AWS Knowledge Base using Bedrock Agent Runtime
 
 ## 🌎 Community Servers
 
@@ -29,14 +32,14 @@ Each MCP server is implemented with either the [Typescript MCP SDK](https://gith
 ## 🚀 Getting Started
 
 ### Using MCP Servers in this Repository
-Typescript-based servers in this repository can be used directly with `npx`. 
+Typescript-based servers in this repository can be used directly with `npx`.
 
 For example, this will start the [Memory](src/memory) server:
 ```sh
 npx -y @modelcontextprotocol/server-memory
 ```
 
-Python-based servers in this repository can be used directly with [`uvx`](https://docs.astral.sh/uv/concepts/tools/) or [`pip`](https://pypi.org/project/pip/). `uvx` is recommended for ease of use and setup. 
+Python-based servers in this repository can be used directly with [`uvx`](https://docs.astral.sh/uv/concepts/tools/) or [`pip`](https://pypi.org/project/pip/). `uvx` is recommended for ease of use and setup.
 
 For example, this will start the [Git](src/git) server:
 ```sh
