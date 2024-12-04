@@ -231,10 +231,14 @@ function findTextPosition(content: string, searchText: string): Position {
   if (pos === -1) {
     throw new Error(`Text not found:\n${searchText}`);
   }
+
+  // Map back to original content position
+  const originalPos = content.slice(0, pos).replace(/[ \t]+/g, ' ').length;
+  const originalEnd = originalPos + searchText.length;
   
   return {
     start: pos,
-    end: pos + searchText.length,
+    end: originalEnd,
     lineNumber: normalized.slice(0, pos).split('\n').length
   };
 }
