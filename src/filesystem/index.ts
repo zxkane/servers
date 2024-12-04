@@ -216,6 +216,29 @@ async function searchFiles(
   return results;
 }
 
+interface Position {
+  start: number;
+  end: number;
+  lineNumber: number;
+}
+
+function findTextPosition(content: string, searchText: string): Position {
+  // Handle different line endings
+  const normalized = content.replace(/\r\n/g, '\n');
+  const searchNormalized = searchText.replace(/\r\n/g, '\n');
+  
+  const pos = normalized.indexOf(searchNormalized);
+  if (pos === -1) {
+    throw new Error(`Text not found:\n${searchText}`);
+  }
+  
+  return {
+    start: pos,
+    end: pos + searchText.length,
+    lineNumber: normalized.slice(0, pos).split('\n').length
+  };
+}
+
 // Edit preview type
 interface EditPreview {
   original: string;
@@ -225,37 +248,39 @@ interface EditPreview {
 }
 
 // File editing utilities
-async function applyFileEdits(filePath: string, edits: Array<{oldText: string, newText: string}>, dryRun: boolean = false): Promise<string | EditPreview[]> {
+async function applyFileEdits(filePath: string, edits: Array<{oldText: string, newText: string}>, dryRun = false): Promise<string | EditPreview[]> {
   let content = await fs.readFile(filePath, 'utf-8');
   const previews: EditPreview[] = [];
   
-  for (const edit of edits) {
-    const pos = content.indexOf(edit.oldText);
-    if (pos === -1) {
-      throw new Error(
-        `Search text not found in ${filePath}:\n${edit.oldText}`
-      );
-    }
-    
-    const lineNumber = content.slice(0, pos).split(/\r?\n/).length;
+  // Find all positions first
+  const positions = edits.map(edit => ({
+    edit,
+    position: findTextPosition(content, edit.oldText)
+  }));
+  
+  // Sort by position in reverse order
+  positions.sort((a, b) => b.position.start - a.position.start);
+  
+  // Apply edits from end to start
+  for (const {edit, position} of positions) {
     const preview = [
-      `@@ line ${lineNumber} @@`,
+      `@@ line ${position.lineNumber} @@`,
       '<<<<<<< ORIGINAL',
       edit.oldText,
       '=======',
       edit.newText,
-      '>>>>>>> MODIFIED'
+      '>>>>>>> MODIFIED'  
     ].join('\n');
     
     previews.push({
       original: edit.oldText,
       modified: edit.newText,
-      lineNumber,
+      lineNumber: position.lineNumber,
       preview
     });
-    
+
     if (!dryRun) {
-      content = content.slice(0, pos) + edit.newText + content.slice(pos + edit.oldText.length);
+      content = content.slice(0, position.start) + edit.newText + content.slice(position.end);
     }
   }
   
