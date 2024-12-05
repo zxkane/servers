@@ -37,23 +37,28 @@ Node.js server implementing Model Context Protocol (MCP) for filesystem operatio
     - `content` (string): File content
 
 - **edit_file**
-  - Make selective edits using search and replace
+  - Make selective edits using advanced pattern matching and formatting
   - Features:
-    - Simple substring matching for finding text
-    - Git-style preview format for changes
+    - Line-based and multi-line content matching
+    - Whitespace normalization with indentation preservation
+    - Fuzzy matching with confidence scoring
+    - Multiple simultaneous edits with correct positioning
+    - Indentation style detection and preservation
+    - Git-style diff output with context
     - Preview changes with dry run mode
-    - Preserves consistent indentation patterns
-  - Limitations:
-    - Intended for content changes, not code formatting
-    - Mixed tabs/spaces can cause pattern matching issues
-    - Use code formatters (e.g., Prettier, ESLint) before content edits
+    - Failed match debugging with confidence scores
   - Inputs:
     - `path` (string): File to edit
     - `edits` (array): List of edit operations
       - `oldText` (string): Text to search for (can be substring)
       - `newText` (string): Text to replace with
-      - `dryRun` (boolean): Preview changes without applying (default: false)
-  - Returns preview information for dry runs, otherwise applies changes
+    - `dryRun` (boolean): Preview changes without applying (default: false)
+    - `options` (object): Optional formatting settings
+      - `preserveIndentation` (boolean): Keep existing indentation (default: true)
+      - `normalizeWhitespace` (boolean): Normalize spaces while preserving structure (default: true)
+      - `partialMatch` (boolean): Enable fuzzy matching (default: true)
+  - Returns detailed diff and match information for dry runs, otherwise applies changes
+  - Best Practice: Always use dryRun first to preview changes before applying them
 
 - **create_directory**
   - Create new directory or ensure it exists
