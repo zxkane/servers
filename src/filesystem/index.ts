@@ -12,6 +12,7 @@ import path from "path";
 import os from 'os';
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { diffLines, createTwoFilesPatch } from 'diff';
 
 // Command line argument parsing
 const args = process.argv.slice(2);
@@ -216,146 +217,238 @@ async function searchFiles(
   return results;
 }
 
-interface DiffLine {
-  type: 'context' | 'addition' | 'deletion';
-  content: string;
-  lineNumber: number;
+// file editing and diffing utilities
+function createUnifiedDiff(originalContent: string, newContent: string, filepath: string = 'file'): string {
+  return createTwoFilesPatch(
+    filepath,
+    filepath,
+    originalContent,
+    newContent,
+    'original',
+    'modified'
+  );
 }
 
-function createUnifiedDiff(originalLines: string[], newLines: string[], contextSize: number = 3): string {
-  const differ = new Array<DiffLine>();
-  let lineNumber = 1;
-  
-  // Helper to add context lines
-  function addContext(lines: string[], start: number, count: number) {
-    for (let i = 0; i < count && start + i < lines.length; i++) {
-      differ.push({
-        type: 'context',
-        content: lines[start + i],
-        lineNumber: start + i + 1
-      });
-    }
-  }
-
-  // Find the differences using longest common subsequence
-  const changes: Array<{type: 'context' | 'addition' | 'deletion', line: string, index: number}> = [];
-  let i = 0, j = 0;
-  
-  while (i < originalLines.length || j < newLines.length) {
-    if (i < originalLines.length && j < newLines.length && originalLines[i] === newLines[j]) {
-      changes.push({type: 'context', line: originalLines[i], index: i});
-      i++;
-      j++;
-    } else {
-      if (i < originalLines.length) {
-        changes.push({type: 'deletion', line: originalLines[i], index: i});
-        i++;
-      }
-      if (j < newLines.length) {
-        changes.push({type: 'addition', line: newLines[j], index: j});
-        j++;
-      }
-    }
-  }
-
-  // Group changes into hunks with context
-  let currentHunk: DiffLine[] = [];
-  let hunks: DiffLine[][] = [];
-  let lastChangeIndex = -1;
-
-  for (let i = 0; i < changes.length; i++) {
-    const change = changes[i];
-    
-    if (change.type !== 'context' || 
-        (lastChangeIndex >= 0 && i - lastChangeIndex <= contextSize * 2)) {
-      if (change.type !== 'context') {
-        lastChangeIndex = i;
-      }
-      currentHunk.push({
-        type: change.type,
-        content: change.line,
-        lineNumber: change.index + 1
-      });
-    } else {
-      if (currentHunk.length > 0) {
-        hunks.push(currentHunk);
-        currentHunk = [];
-      }
-    }
-  }
-  
-  if (currentHunk.length > 0) {
-    hunks.push(currentHunk);
-  }
-
-  // Format the diff output
-  let diffOutput = '';
-  
-  for (const hunk of hunks) {
-    const startLine = hunk[0].lineNumber;
-    const endLine = hunk[hunk.length - 1].lineNumber;
-    
-    diffOutput += `@@ -${startLine},${endLine} @@\n`;
-    
-    for (const line of hunk) {
-      const prefix = line.type === 'addition' ? '+' :
-                    line.type === 'deletion' ? '-' : ' ';
-      diffOutput += `${prefix}${line.content}\n`;
-    }
-    
-    diffOutput += '\n';
-  }
-
-  return diffOutput;
+// Utility functions for text normalization and matching
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
-// File editing utilities
-async function applyFileEdits(
-  filePath: string, 
-  edits: Array<{oldText: string, newText: string}>, 
-  dryRun = false
-): Promise<string | string> {
-  let content = await fs.readFile(filePath, 'utf-8');
-  const originalLines = content.split('\n');
-  let modifiedContent = content;
+function normalizeWhitespace(text: string, preserveIndentation: boolean = true): string {
+  if (!preserveIndentation) {
+    // Collapse all whitespace to single spaces if not preserving indentation
+    return text.replace(/\s+/g, ' ');
+  }
   
-  // First, validate all edits can be applied
-  const positions = edits.map(edit => {
-    const pos = modifiedContent.indexOf(edit.oldText);
-    if (pos === -1) {
-      throw new Error(`Text not found:\n${edit.oldText}`);
-    }
+  // Preserve line structure but normalize inline whitespace
+  return text.split('\n').map(line => {
+    // Preserve leading whitespace
+    const indent = line.match(/^[\s\t]*/)?.[0] || '';
+    // Normalize rest of line
+    const content = line.slice(indent.length).trim().replace(/\s+/g, ' ');
+    return indent + content;
+  }).join('\n');
+}
+
+interface EditOptions {
+  preserveIndentation?: boolean;
+  normalizeWhitespace?: boolean;
+  partialMatch?: boolean;
+}
+
+interface EditMatch {
+  start: number;
+  end: number;
+  confidence: number;
+}
+
+function findBestMatch(content: string, searchText: string, options: EditOptions): EditMatch | null {
+  const normalizedContent = normalizeLineEndings(content);
+  const normalizedSearch = normalizeLineEndings(searchText);
+  
+  // Try exact match first
+  const exactPos = normalizedContent.indexOf(normalizedSearch);
+  if (exactPos !== -1) {
     return {
-      edit,
-      position: pos,
-      length: edit.oldText.length
+      start: exactPos,
+      end: exactPos + searchText.length,
+      confidence: 1.0
     };
-  });
-
-  // Sort positions in reverse order to apply from end to start
-  positions.sort((a, b) => b.position - a.position);
-
-  if (dryRun) {
-    // For dry run, create a unified diff preview
-    for (const {edit, position} of positions) {
-      modifiedContent = 
-        modifiedContent.slice(0, position) + 
-        edit.newText + 
-        modifiedContent.slice(position + edit.oldText.length);
+  }
+  
+  // If whitespace normalization is enabled, try that next
+  if (options.normalizeWhitespace) {
+    const normContent = normalizeWhitespace(normalizedContent, options.preserveIndentation);
+    const normSearch = normalizeWhitespace(normalizedSearch, options.preserveIndentation);
+    const normPos = normContent.indexOf(normSearch);
+    
+    if (normPos !== -1) {
+      // Find the corresponding position in original text
+      const beforeMatch = normContent.slice(0, normPos);
+      const originalPos = findOriginalPosition(content, beforeMatch);
+      return {
+        start: originalPos,
+        end: originalPos + searchText.length,
+        confidence: 0.9
+      };
+    }
+  }
+  
+  // If partial matching is enabled, try to find the best partial match
+  if (options.partialMatch) {
+    const lines = normalizedContent.split('\n');
+    const searchLines = normalizedSearch.split('\n');
+    
+    let bestMatch: EditMatch | null = null;
+    let bestScore = 0;
+    
+    // Sliding window search through the content
+    for (let i = 0; i < lines.length - searchLines.length + 1; i++) {
+      let matchScore = 0;
+      let matchLength = 0;
+      
+      for (let j = 0; j < searchLines.length; j++) {
+        const contentLine = options.normalizeWhitespace 
+          ? normalizeWhitespace(lines[i + j], options.preserveIndentation)
+          : lines[i + j];
+        const searchLine = options.normalizeWhitespace
+          ? normalizeWhitespace(searchLines[j], options.preserveIndentation)
+          : searchLines[j];
+        
+        const similarity = calculateSimilarity(contentLine, searchLine);
+        matchScore += similarity;
+        matchLength += lines[i + j].length + 1; // +1 for newline
+      }
+      
+      const averageScore = matchScore / searchLines.length;
+      if (averageScore > bestScore && averageScore > 0.7) { // Threshold for minimum match quality
+        bestScore = averageScore;
+        const start = lines.slice(0, i).reduce((acc, line) => acc + line.length + 1, 0);
+        bestMatch = {
+          start,
+          end: start + matchLength,
+          confidence: averageScore
+        };
+      }
     }
     
-    const modifiedLines = modifiedContent.split('\n');
-    return createUnifiedDiff(originalLines, modifiedLines);
-  } else {
-    // Apply the edits
-    for (const {edit, position} of positions) {
-      modifiedContent = 
-        modifiedContent.slice(0, position) + 
-        edit.newText + 
-        modifiedContent.slice(position + edit.oldText.length);
-    }
-    return modifiedContent;
+    return bestMatch;
   }
+  
+  return null;
+}
+
+function calculateSimilarity(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const matrix: number[][] = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+  
+  for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+  for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+  
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  
+  const maxLength = Math.max(len1, len2);
+  return maxLength === 0 ? 1 : (maxLength - matrix[len1][len2]) / maxLength;
+}
+
+function findOriginalPosition(original: string, normalizedPrefix: string): number {
+  let origPos = 0;
+  let normPos = 0;
+  
+  while (normPos < normalizedPrefix.length && origPos < original.length) {
+    if (normalizeWhitespace(original[origPos], true) === normalizedPrefix[normPos]) {
+      normPos++;
+    }
+    origPos++;
+  }
+  
+  return origPos;
+}
+
+async function applyFileEdits(
+  filePath: string,
+  edits: Array<{oldText: string, newText: string}>,
+  dryRun = false,
+  options: EditOptions = {
+    preserveIndentation: true,
+    normalizeWhitespace: true,
+    partialMatch: true
+  }
+): Promise<string> {
+  const content = await fs.readFile(filePath, 'utf-8');
+  let modifiedContent = content;
+  const failedEdits: Array<{edit: typeof edits[0], error: string}> = [];
+  const successfulEdits: Array<{edit: typeof edits[0], match: EditMatch}> = [];
+  
+  // Sort edits by position (if found) to apply them in order
+  for (const edit of edits) {
+    const match = findBestMatch(modifiedContent, edit.oldText, options);
+    
+    if (!match) {
+      failedEdits.push({
+        edit,
+        error: 'No suitable match found'
+      });
+      continue;
+    }
+    
+    // For low confidence matches in non-dry-run mode, we might want to throw
+    if (!dryRun && match.confidence < 0.8) {
+      failedEdits.push({
+        edit,
+        error: `Match confidence too low: ${(match.confidence * 100).toFixed(1)}%`
+      });
+      continue;
+    }
+    
+    successfulEdits.push({ edit, match });
+  }
+  
+  // Sort successful edits by position (reverse order to maintain positions)
+  successfulEdits.sort((a, b) => b.match.start - a.match.start);
+  
+  // Apply successful edits
+  for (const { edit, match } of successfulEdits) {
+    modifiedContent = 
+      modifiedContent.slice(0, match.start) + 
+      edit.newText + 
+      modifiedContent.slice(match.end);
+  }
+  
+  if (dryRun) {
+    let report = createUnifiedDiff(content, modifiedContent, filePath);
+    
+    if (failedEdits.length > 0) {
+      report += '\nFailed edits:\n' + failedEdits.map(({ edit, error }) => 
+        `- Error: ${error}\n  Old text: ${edit.oldText.split('\n')[0]}...\n`
+      ).join('\n');
+    }
+    
+    if (successfulEdits.length > 0) {
+      report += '\nSuccessful edits:\n' + successfulEdits.map(({ edit, match }) =>
+        `- Match confidence: ${(match.confidence * 100).toFixed(1)}%\n  Position: ${match.start}-${match.end}\n`
+      ).join('\n');
+    }
+    
+    return report;
+  }
+  
+  if (failedEdits.length > 0) {
+    const errors = failedEdits.map(({ error }) => error).join('\n');
+    throw new Error(`Some edits failed:\n${errors}`);
+  }
+  
+  return modifiedContent;
 }
 
 // Tool handlers
@@ -392,8 +485,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "edit_file",
         description:
-          "Make selective edits to a text file using search and replace with unified diff previews. " +
+          "Make selective edits to a text file using line-based pattern matching and replacement. " +
+          "Handles both single-line and multi-line edits, with smart positioning to handle multiple edits simultaneously. " +
           "Shows changes in standard unified diff format with context lines, similar to git diff. " +
+          "Provides detailed diff output for failed matches to aid debugging. " +
           "Use dry run mode to preview changes in patch format before applying them. " +
           "Only works within allowed directories.",
         inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
