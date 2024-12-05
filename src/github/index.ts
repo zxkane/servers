@@ -632,161 +632,186 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(
-  CallToolRequestSchema,
-  async (request: CallToolRequest) => {
-    try {
-      if (!request.params.arguments) {
-        throw new Error("Arguments are required");
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  try {
+    if (!request.params.arguments) {
+      throw new Error("Arguments are required");
+    }
+
+    switch (request.params.name) {
+      case "fork_repository": {
+        const args = ForkRepositorySchema.parse(request.params.arguments);
+        const fork = await forkRepository(
+          args.owner,
+          args.repo,
+          args.organization
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(fork, null, 2) }],
+        };
       }
 
-      switch (request.params.name) {
-        case "fork_repository": {
-          const args = ForkRepositorySchema.parse(request.params.arguments);
-          const fork = await forkRepository(
-            args.owner,
-            args.repo,
-            args.organization
-          );
-          return { toolResult: fork };
-        }
-
-        case "create_branch": {
-          const args = CreateBranchSchema.parse(request.params.arguments);
-          let sha: string;
-          if (args.from_branch) {
-            const response = await fetch(
-              `https://api.github.com/repos/${args.owner}/${args.repo}/git/refs/heads/${args.from_branch}`,
-              {
-                headers: {
-                  Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
-                  Accept: "application/vnd.github.v3+json",
-                  "User-Agent": "github-mcp-server",
-                },
-              }
-            );
-
-            if (!response.ok) {
-              throw new Error(`Source branch '${args.from_branch}' not found`);
+      case "create_branch": {
+        const args = CreateBranchSchema.parse(request.params.arguments);
+        let sha: string;
+        if (args.from_branch) {
+          const response = await fetch(
+            `https://api.github.com/repos/${args.owner}/${args.repo}/git/refs/heads/${args.from_branch}`,
+            {
+              headers: {
+                Authorization: `token ${GITHUB_PERSONAL_ACCESS_TOKEN}`,
+                Accept: "application/vnd.github.v3+json",
+                "User-Agent": "github-mcp-server",
+              },
             }
+          );
 
-            const data = GitHubReferenceSchema.parse(await response.json());
-            sha = data.object.sha;
-          } else {
-            sha = await getDefaultBranchSHA(args.owner, args.repo);
+          if (!response.ok) {
+            throw new Error(`Source branch '${args.from_branch}' not found`);
           }
 
-          const branch = await createBranch(args.owner, args.repo, {
-            ref: args.branch,
-            sha,
-          });
-
-          return { toolResult: branch };
+          const data = GitHubReferenceSchema.parse(await response.json());
+          sha = data.object.sha;
+        } else {
+          sha = await getDefaultBranchSHA(args.owner, args.repo);
         }
 
-        case "search_repositories": {
-          const args = SearchRepositoriesSchema.parse(request.params.arguments);
-          const results = await searchRepositories(
-            args.query,
-            args.page,
-            args.perPage
-          );
-          return { toolResult: results };
-        }
+        const branch = await createBranch(args.owner, args.repo, {
+          ref: args.branch,
+          sha,
+        });
 
-        case "create_repository": {
-          const args = CreateRepositorySchema.parse(request.params.arguments);
-          const repository = await createRepository(args);
-          return { toolResult: repository };
-        }
-
-        case "get_file_contents": {
-          const args = GetFileContentsSchema.parse(request.params.arguments);
-          const contents = await getFileContents(
-            args.owner,
-            args.repo,
-            args.path,
-            args.branch
-          );
-          return { toolResult: contents };
-        }
-
-        case "create_or_update_file": {
-          const args = CreateOrUpdateFileSchema.parse(request.params.arguments);
-          const result = await createOrUpdateFile(
-            args.owner,
-            args.repo,
-            args.path,
-            args.content,
-            args.message,
-            args.branch,
-            args.sha
-          );
-          return { toolResult: result };
-        }
-
-        case "push_files": {
-          const args = PushFilesSchema.parse(request.params.arguments);
-          const result = await pushFiles(
-            args.owner,
-            args.repo,
-            args.branch,
-            args.files,
-            args.message
-          );
-          return { toolResult: result };
-        }
-
-        case "create_issue": {
-          const args = CreateIssueSchema.parse(request.params.arguments);
-          const { owner, repo, ...options } = args;
-          const issue = await createIssue(owner, repo, options);
-          return { toolResult: issue };
-        }
-
-        case "create_pull_request": {
-          const args = CreatePullRequestSchema.parse(request.params.arguments);
-          const { owner, repo, ...options } = args;
-          const pullRequest = await createPullRequest(owner, repo, options);
-          return { toolResult: pullRequest };
-        }
-
-        case "search_code": {
-          const args = SearchCodeSchema.parse(request.params.arguments);
-          const results = await searchCode(args);
-          return { toolResult: results };
-        }
-
-        case "search_issues": {
-          const args = SearchIssuesSchema.parse(request.params.arguments);
-          const results = await searchIssues(args);
-          return { toolResult: results };
-        }
-
-        case "search_users": {
-          const args = SearchUsersSchema.parse(request.params.arguments);
-          const results = await searchUsers(args);
-          return { toolResult: results };
-        }
-
-        default:
-          throw new Error(`Unknown tool: ${request.params.name}`);
+        return {
+          content: [{ type: "text", text: JSON.stringify(branch, null, 2) }],
+        };
       }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error(
-          `Invalid arguments: ${error.errors
-            .map(
-              (e: z.ZodError["errors"][number]) =>
-                `${e.path.join(".")}: ${e.message}`
-            )
-            .join(", ")}`
+
+      case "search_repositories": {
+        const args = SearchRepositoriesSchema.parse(request.params.arguments);
+        const results = await searchRepositories(
+          args.query,
+          args.page,
+          args.perPage
         );
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
       }
-      throw error;
+
+      case "create_repository": {
+        const args = CreateRepositorySchema.parse(request.params.arguments);
+        const repository = await createRepository(args);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(repository, null, 2) },
+          ],
+        };
+      }
+
+      case "get_file_contents": {
+        const args = GetFileContentsSchema.parse(request.params.arguments);
+        const contents = await getFileContents(
+          args.owner,
+          args.repo,
+          args.path,
+          args.branch
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(contents, null, 2) }],
+        };
+      }
+
+      case "create_or_update_file": {
+        const args = CreateOrUpdateFileSchema.parse(request.params.arguments);
+        const result = await createOrUpdateFile(
+          args.owner,
+          args.repo,
+          args.path,
+          args.content,
+          args.message,
+          args.branch,
+          args.sha
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "push_files": {
+        const args = PushFilesSchema.parse(request.params.arguments);
+        const result = await pushFiles(
+          args.owner,
+          args.repo,
+          args.branch,
+          args.files,
+          args.message
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "create_issue": {
+        const args = CreateIssueSchema.parse(request.params.arguments);
+        const { owner, repo, ...options } = args;
+        const issue = await createIssue(owner, repo, options);
+        return {
+          content: [{ type: "text", text: JSON.stringify(issue, null, 2) }],
+        };
+      }
+
+      case "create_pull_request": {
+        const args = CreatePullRequestSchema.parse(request.params.arguments);
+        const { owner, repo, ...options } = args;
+        const pullRequest = await createPullRequest(owner, repo, options);
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(pullRequest, null, 2) },
+          ],
+        };
+      }
+
+      case "search_code": {
+        const args = SearchCodeSchema.parse(request.params.arguments);
+        const results = await searchCode(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_issues": {
+        const args = SearchIssuesSchema.parse(request.params.arguments);
+        const results = await searchIssues(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      case "search_users": {
+        const args = SearchUsersSchema.parse(request.params.arguments);
+        const results = await searchUsers(args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+        };
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${request.params.name}`);
     }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(
+        `Invalid arguments: ${error.errors
+          .map(
+            (e: z.ZodError["errors"][number]) =>
+              `${e.path.join(".")}: ${e.message}`
+          )
+          .join(", ")}`
+      );
+    }
+    throw error;
   }
-);
+});
 
 async function runServer() {
   const transport = new StdioServerTransport();
