@@ -216,79 +216,146 @@ async function searchFiles(
   return results;
 }
 
-interface Position {
-  start: number;
-  end: number;
+interface DiffLine {
+  type: 'context' | 'addition' | 'deletion';
+  content: string;
   lineNumber: number;
 }
 
-function findTextPosition(content: string, searchText: string): Position {
-  // Handle different line endings
-  const normalized = content.replace(/\r\n/g, '\n');
-  const searchNormalized = searchText.replace(/\r\n/g, '\n');
+function createUnifiedDiff(originalLines: string[], newLines: string[], contextSize: number = 3): string {
+  const differ = new Array<DiffLine>();
+  let lineNumber = 1;
   
-  const pos = normalized.indexOf(searchNormalized);
-  if (pos === -1) {
-    throw new Error(`Text not found:\n${searchText}`);
+  // Helper to add context lines
+  function addContext(lines: string[], start: number, count: number) {
+    for (let i = 0; i < count && start + i < lines.length; i++) {
+      differ.push({
+        type: 'context',
+        content: lines[start + i],
+        lineNumber: start + i + 1
+      });
+    }
   }
 
-  // Map back to original content position
-  const originalPos = content.slice(0, pos).replace(/[ \t]+/g, ' ').length;
-  const originalEnd = originalPos + searchText.length;
+  // Find the differences using longest common subsequence
+  const changes: Array<{type: 'context' | 'addition' | 'deletion', line: string, index: number}> = [];
+  let i = 0, j = 0;
   
-  return {
-    start: pos,
-    end: originalEnd,
-    lineNumber: normalized.slice(0, pos).split('\n').length
-  };
-}
+  while (i < originalLines.length || j < newLines.length) {
+    if (i < originalLines.length && j < newLines.length && originalLines[i] === newLines[j]) {
+      changes.push({type: 'context', line: originalLines[i], index: i});
+      i++;
+      j++;
+    } else {
+      if (i < originalLines.length) {
+        changes.push({type: 'deletion', line: originalLines[i], index: i});
+        i++;
+      }
+      if (j < newLines.length) {
+        changes.push({type: 'addition', line: newLines[j], index: j});
+        j++;
+      }
+    }
+  }
 
-// Edit preview type
-interface EditPreview {
-  original: string;
-  modified: string;
-  lineNumber: number;
-  preview: string;  // Git-style diff format
-}
+  // Group changes into hunks with context
+  let currentHunk: DiffLine[] = [];
+  let hunks: DiffLine[][] = [];
+  let lastChangeIndex = -1;
 
-// File editing utilities
-async function applyFileEdits(filePath: string, edits: Array<{oldText: string, newText: string}>, dryRun = false): Promise<string | EditPreview[]> {
-  let content = await fs.readFile(filePath, 'utf-8');
-  const previews: EditPreview[] = [];
-  
-  // Find all positions first
-  const positions = edits.map(edit => ({
-    edit,
-    position: findTextPosition(content, edit.oldText)
-  }));
-  
-  // Sort by position in reverse order
-  positions.sort((a, b) => b.position.start - a.position.start);
-  
-  // Apply edits from end to start
-  for (const {edit, position} of positions) {
-    const preview = [
-      `@@ line ${position.lineNumber} @@`,
-      '<<<<<<< ORIGINAL',
-      edit.oldText,
-      '=======',
-      edit.newText,
-      '>>>>>>> MODIFIED'  
-    ].join('\n');
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i];
     
-    previews.push({
-      original: edit.oldText,
-      modified: edit.newText,
-      lineNumber: position.lineNumber,
-      preview
-    });
-
-    if (!dryRun) {
-      content = content.slice(0, position.start) + edit.newText + content.slice(position.end);
+    if (change.type !== 'context' || 
+        (lastChangeIndex >= 0 && i - lastChangeIndex <= contextSize * 2)) {
+      if (change.type !== 'context') {
+        lastChangeIndex = i;
+      }
+      currentHunk.push({
+        type: change.type,
+        content: change.line,
+        lineNumber: change.index + 1
+      });
+    } else {
+      if (currentHunk.length > 0) {
+        hunks.push(currentHunk);
+        currentHunk = [];
+      }
     }
   }
   
-  return dryRun ? previews : content;
+  if (currentHunk.length > 0) {
+    hunks.push(currentHunk);
+  }
+
+  // Format the diff output
+  let diffOutput = '';
+  
+  for (const hunk of hunks) {
+    const startLine = hunk[0].lineNumber;
+    const endLine = hunk[hunk.length - 1].lineNumber;
+    
+    diffOutput += `@@ -${startLine},${endLine} @@\n`;
+    
+    for (const line of hunk) {
+      const prefix = line.type === 'addition' ? '+' :
+                    line.type === 'deletion' ? '-' : ' ';
+      diffOutput += `${prefix}${line.content}\n`;
+    }
+    
+    diffOutput += '\n';
+  }
+
+  return diffOutput;
+}
+
+// File editing utilities
+async function applyFileEdits(
+  filePath: string, 
+  edits: Array<{oldText: string, newText: string}>, 
+  dryRun = false
+): Promise<string | string> {
+  let content = await fs.readFile(filePath, 'utf-8');
+  const originalLines = content.split('\n');
+  let modifiedContent = content;
+  
+  // First, validate all edits can be applied
+  const positions = edits.map(edit => {
+    const pos = modifiedContent.indexOf(edit.oldText);
+    if (pos === -1) {
+      throw new Error(`Text not found:\n${edit.oldText}`);
+    }
+    return {
+      edit,
+      position: pos,
+      length: edit.oldText.length
+    };
+  });
+
+  // Sort positions in reverse order to apply from end to start
+  positions.sort((a, b) => b.position - a.position);
+
+  if (dryRun) {
+    // For dry run, create a unified diff preview
+    for (const {edit, position} of positions) {
+      modifiedContent = 
+        modifiedContent.slice(0, position) + 
+        edit.newText + 
+        modifiedContent.slice(position + edit.oldText.length);
+    }
+    
+    const modifiedLines = modifiedContent.split('\n');
+    return createUnifiedDiff(originalLines, modifiedLines);
+  } else {
+    // Apply the edits
+    for (const {edit, position} of positions) {
+      modifiedContent = 
+        modifiedContent.slice(0, position) + 
+        edit.newText + 
+        modifiedContent.slice(position + edit.oldText.length);
+    }
+    return modifiedContent;
+  }
 }
 
 // Tool handlers
@@ -325,9 +392,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "edit_file",
         description:
-          "Make selective edits to a text file using simple search and replace with git-style preview format. " +
-          "Finds text to replace using substring matching and shows changes in a familiar git-diff format. " +
-          "Use dry run mode to preview changes before applying them. " +
+          "Make selective edits to a text file using search and replace with unified diff previews. " +
+          "Shows changes in standard unified diff format with context lines, similar to git diff. " +
+          "Use dry run mode to preview changes in patch format before applying them. " +
           "Only works within allowed directories.",
         inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
       },
@@ -452,15 +519,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const validPath = await validatePath(parsed.data.path);
         const result = await applyFileEdits(validPath, parsed.data.edits, parsed.data.dryRun);
         
-        // If it's a dry run, format the previews
+        // If it's a dry run, show the unified diff
         if (parsed.data.dryRun) {
-          const previewText = (result as EditPreview[]).map(preview => preview.preview).join('\n\n');
           return {
-            content: [{ type: "text", text: `Edit preview:\n${previewText}` }],
+            content: [{ type: "text", text: `Edit preview:\n${result}` }],
           };
         }
       
-        await fs.writeFile(validPath, result as string, "utf-8");
+        await fs.writeFile(validPath, result, "utf-8");
         return {
           content: [{ type: "text", text: `Successfully applied edits to ${parsed.data.path}` }],
         };
