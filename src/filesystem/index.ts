@@ -114,12 +114,22 @@ const EditOperation = z.object({
   newText: z.string().describe('Text to replace the found text with'),
 });
 
+const EditOptions = z.object({
+  preserveIndentation: z.boolean().default(true).describe('Preserve existing indentation patterns in the file'),
+  normalizeWhitespace: z.boolean().default(true).describe('Normalize whitespace while preserving structure'),
+  partialMatch: z.boolean().default(true).describe('Enable fuzzy matching with confidence scoring')
+});
+
 const EditFileArgsSchema = z.object({
   path: z.string(),
   edits: z.array(EditOperation),
   // Optional: preview changes without applying them
-  dryRun: z.boolean().default(false).describe('Preview changes using git-style diff format')
+  dryRun: z.boolean().default(false).describe('Preview changes using git-style diff format'),
+  // Optional: configure matching and formatting behavior
+  options: EditOptions.default({})
 });
+
+
 
 const CreateDirectoryArgsSchema = z.object({
   path: z.string(),
@@ -250,19 +260,13 @@ function normalizeWhitespace(text: string, preserveIndentation: boolean = true):
   }).join('\n');
 }
 
-interface EditOptions {
-  preserveIndentation?: boolean;
-  normalizeWhitespace?: boolean;
-  partialMatch?: boolean;
-}
-
 interface EditMatch {
   start: number;
   end: number;
   confidence: number;
 }
 
-function findBestMatch(content: string, searchText: string, options: EditOptions): EditMatch | null {
+function findBestMatch(content: string, searchText: string, options: z.infer<typeof EditOptions>): EditMatch | null {
   const normalizedContent = normalizeLineEndings(content);
   const normalizedSearch = normalizeLineEndings(searchText);
   
@@ -379,11 +383,7 @@ async function applyFileEdits(
   filePath: string,
   edits: Array<{oldText: string, newText: string}>,
   dryRun = false,
-  options: EditOptions = {
-    preserveIndentation: true,
-    normalizeWhitespace: true,
-    partialMatch: true
-  }
+  options: z.infer<typeof EditOptions> = EditOptions.parse({})
 ): Promise<string> {
   const content = await fs.readFile(filePath, 'utf-8');
   let modifiedContent = content;
@@ -485,12 +485,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "edit_file",
         description:
-          "Make selective edits to a text file using line-based pattern matching and replacement. " +
-          "Handles both single-line and multi-line edits, with smart positioning to handle multiple edits simultaneously. " +
-          "Shows changes in standard unified diff format with context lines, similar to git diff. " +
-          "Provides detailed diff output for failed matches to aid debugging. " +
-          "Use dry run mode to preview changes in patch format before applying them. " +
-          "Only works within allowed directories.",
+          "Make selective edits to a text file using advanced pattern matching and smart formatting preservation. Features include:\n" +
+          "- Line-based and multi-line content matching\n" +
+          "- Whitespace normalization with indentation preservation\n" +
+          "- Fuzzy matching with confidence scoring\n" +
+          "- Multiple simultaneous edits with correct positioning\n" +
+          "- Indentation style detection and preservation\n" +
+          "- Detailed diff output with context in git format\n" +
+          "- Dry run mode for previewing changes\n" +
+          "- Failed match debugging with match confidence scores\n\n" +
+          "Configure behavior with options.preserveIndentation, options.normalizeWhitespace, and options.partialMatch. " +
+          "See schema for detailed option descriptions. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
       },
       {
@@ -612,7 +617,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for edit_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        const result = await applyFileEdits(validPath, parsed.data.edits, parsed.data.dryRun);
+        const result = await applyFileEdits(validPath, parsed.data.edits, parsed.data.dryRun, parsed.data.options);
         
         // If it's a dry run, show the unified diff
         if (parsed.data.dryRun) {
