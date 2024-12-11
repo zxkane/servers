@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "mcp-server-datagen"
 version = "0.1.0"
 description = "MCP server for generating notional data using Python libraries"
-requires-python = ">=3.12"
+requires-python = ">=3.10,<3.11"
 dependencies = [
     "faker>=20.1.0",
     "mimesis>=13.1.0",
