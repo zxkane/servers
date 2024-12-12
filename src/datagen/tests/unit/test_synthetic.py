@@ -22,18 +22,18 @@ def sample_schema():
 
 
 @pytest.mark.asyncio
-async def test_create_metadata(data_generator, sample_schema):
-    """Test metadata creation from schema."""
-    metadata = data_generator.create_metadata("test_table", sample_schema)
+async def test_type_mapping(data_generator, sample_schema):
+    """Test type mapping functionality."""
+    # Test numpy type mapping
+    assert data_generator._map_type_to_generator("integer") == "numpy"
+    assert data_generator._map_type_to_generator("float") == "numpy"
+    assert data_generator._map_type_to_generator("boolean") == "numpy"
+    assert data_generator._map_type_to_generator("category") == "numpy"
 
-    # Verify all columns are present
-    assert set(sample_schema.keys()) == set(metadata.columns.keys())
-
-    # Verify column types are mapped correctly
-    assert metadata.columns["id"]["sdtype"] == "numerical"
-    assert metadata.columns["name"]["sdtype"] == "categorical"
-    assert metadata.columns["age"]["sdtype"] == "numerical"
-    assert metadata.columns["score"]["sdtype"] == "numerical"
+    # Test faker type mapping
+    assert data_generator._map_type_to_generator("first_name") == "faker"
+    assert data_generator._map_type_to_generator("email") == "faker"
+    assert data_generator._map_type_to_generator("text") == "faker"
 
 
 @pytest.mark.asyncio

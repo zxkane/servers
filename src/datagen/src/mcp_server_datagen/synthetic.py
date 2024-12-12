@@ -1,64 +1,78 @@
-"""Synthetic data generation using SDV."""
+"""Synthetic data generation using numpy and faker."""
 
-from typing import Dict, List, Any, Set, Union
-import pandas as pd
+import datetime
 import numpy as np
 from faker import Faker
 from mimesis import Generic
-from sdv.single_table import GaussianCopulaSynthesizer
-from sdv.metadata import SingleTableMetadata
-from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set, Union
+
+# Default schemas for insurance data generation
+DEFAULT_CUSTOMER_SCHEMA = {
+    "customer_id": {"type": "integer", "generator": "numpy", "min": 10000, "max": 99999},
+    "first_name": {"type": "first_name", "generator": "faker"},
+    "last_name": {"type": "last_name", "generator": "faker"},
+    "age": {"type": "integer", "generator": "numpy", "min": 18, "max": 85},
+    "credit_score": {"type": "integer", "generator": "numpy", "min": 300, "max": 850},
+    "active": {"type": "boolean", "generator": "numpy"}
+}
+
+DEFAULT_POLICY_SCHEMA = {
+    "policy_id": {"type": "integer", "generator": "numpy", "min": 100000, "max": 999999, "prefix": "POL-"},
+    "customer_id": {"type": "integer", "generator": "numpy", "min": 10000, "max": 99999, "correlated": True},
+    "premium": {"type": "float", "generator": "numpy", "min": 500.0, "max": 5000.0},
+    "deductible": {"type": "float", "generator": "numpy", "min": 250.0, "max": 2000.0},
+    "coverage_amount": {"type": "integer", "generator": "numpy", "min": 50000, "max": 1000000},
+    "risk_score": {"type": "integer", "generator": "numpy", "min": 1, "max": 100},
+    "policy_type": {"type": "category", "generator": "numpy", "categories": ["Auto", "Home", "Life", "Health"]},
+    "start_date": {"type": "date_this_year", "generator": "faker"}
+}
+
+DEFAULT_CLAIMS_SCHEMA = {
+    "claim_id": {"type": "integer", "generator": "numpy", "min": 500000, "max": 999999},
+    "policy_id": {"type": "integer", "generator": "numpy", "min": 100000, "max": 999999, "correlated": True},
+    "amount": {"type": "float", "generator": "numpy", "min": 100.0, "max": 50000.0},
+    "status": {"type": "category", "generator": "numpy", "categories": ["Open", "Closed", "Pending", "Denied"]},
+    "date_filed": {"type": "date_this_year", "generator": "faker"},
+    "description": {"type": "text", "generator": "faker"}
+}
 
 
 class SyntheticDataGenerator:
-    """Handles synthetic data generation using SDV."""
+    """Handles synthetic data generation."""
 
     def __init__(self):
         """Initialize the synthetic data generator."""
-        self.synthesizers: Dict[str, GaussianCopulaSynthesizer] = {}
-        self.metadata: Dict[str, SingleTableMetadata] = {}
         self.faker = Faker()
         self.mimesis = Generic()
         # Store generated IDs for relationships
-        self._generated_ids: Dict[str, Set[Union[int, str]]] = {
-            "customers": set(),
-            "policies": set(),
-            "claims": set()
+        self._generated_ids: Dict[str, Set[Union[int, str]]] = {}
+        self._id_counters: Dict[str, int] = {}
+        self.default_schemas: Dict[str, Dict[str, Dict[str, Any]]] = {
+            "customers": DEFAULT_CUSTOMER_SCHEMA,
+            "policies": DEFAULT_POLICY_SCHEMA,
+            "claims": DEFAULT_CLAIMS_SCHEMA
         }
-        self.default_schemas: Dict[str, Dict[str, Dict[str, Any]]] = {}
-        # Counter for ID generation
-        self.id_counters: Dict[str, int] = {}
 
-    def create_metadata(
-        self,
-        table_name: str,
-        schema: Dict[str, Dict[str, Any]]
-    ) -> SingleTableMetadata:
-        """Create metadata for a table based on schema."""
-        metadata = SingleTableMetadata()
+    def _map_type_to_generator(self, data_type: str) -> str:
+        """Map data type to appropriate generator."""
+        # Handle legacy faker.method format
+        if "." in data_type:
+            return "faker"
 
-        for col_name, col_spec in schema.items():
-            data_type = col_spec.get("type", "string")
-            sdtype = self._map_type_to_sdtype(data_type)
-            metadata.add_column(
-                column_name=col_name,
-                sdtype=sdtype
-            )
+        # Direct faker types
+        if data_type in {
+            "first_name", "last_name", "email", "phone_number",
+            "address", "text", "date_this_year", "date_this_decade",
+            "date_of_birth", "name", "string"
+        }:
+            return "faker"
 
-        return metadata
+        # Numpy types
+        if data_type in {"boolean", "integer", "int", "float", "category"}:
+            return "numpy"
 
-    def _map_type_to_sdtype(self, data_type: str) -> str:
-        """Map data type to SDV type."""
-        type_mapping = {
-            "string": "categorical",
-            "int": "numerical",
-            "integer": "numerical",
-            "float": "numerical",
-            "datetime": "datetime",
-            "boolean": "boolean",
-            "category": "categorical"
-        }
-        return type_mapping.get(data_type, "categorical")
+        # Default to faker for string types
+        return "faker"
 
     def _map_faker_type(self, data_type: str) -> str:
         """Map data type to Faker method name."""
@@ -70,9 +84,9 @@ class SyntheticDataGenerator:
         if data_type in {
             "first_name", "last_name", "email", "phone_number",
             "address", "text", "date_this_year", "date_this_decade",
-            "date_of_birth", "name"
+            "date_of_birth", "name", "string"
         }:
-            return data_type
+            return "text" if data_type == "string" else data_type
 
         # Legacy type mapping
         type_mapping = {
@@ -80,19 +94,18 @@ class SyntheticDataGenerator:
         }
         return type_mapping.get(data_type, "text")
 
-    def _generate_faker_value(self, faker_type: str) -> str:
+    def _generate_faker_value(self, data_type: str) -> str:
         """Generate a value using Faker."""
         # Handle legacy faker.method format
-        if "." in faker_type:
-            faker_type = faker_type.split(".")[-1]
+        if "." in data_type:
+            method_name = data_type.split(".")[-1]
+        else:
+            method_name = data_type
 
-        # Get the faker method
-        method = getattr(self.faker, faker_type, None)
-        if method is None:
-            # Fallback to text() if method not found
-            return self.faker.text()
-
-        return method()
+        faker_method = getattr(self.faker, method_name, None)
+        if faker_method is None:
+            return self.faker.text()  # Default to text if method not found
+        return faker_method()
 
     def _generate_mimesis_value(self, generator: str) -> Any:
         """Generate value using Mimesis."""
@@ -106,44 +119,48 @@ class SyntheticDataGenerator:
                 return getattr(category_instance, method)()
         return None
 
-    def _generate_unique_id(self, table_name: str, col_spec: Dict[str, Any]) -> Union[int, str]:
+    def _generate_unique_id(self, table_name: str, col_spec: Dict[str, Any]) -> int:
         """Generate a unique ID for a table."""
-        min_val = col_spec.get("min", 1000)
-        max_val = col_spec.get("max", 9999)
-
-        # Initialize ID storage if needed
+        # Initialize ID storage and counter for this table if not exists
         if table_name not in self._generated_ids:
             self._generated_ids[table_name] = set()
 
-        # Calculate available range
-        used_count = len(self._generated_ids[table_name])
-        available_range = max_val - min_val + 1
+        # Get ID range from schema
+        min_val = col_spec.get("min", 1)
+        max_val = col_spec.get("max", 999999)
 
-        # Check if we've exhausted the range
-        if used_count >= available_range:
-            raise ValueError(
-                f"Cannot generate unique ID for table {table_name}: "
-                f"All values in range {min_val}-{max_val} have been used"
-            )
+        # Initialize counter at min_val - 1 if not set
+        if table_name not in self._id_counters:
+            self._id_counters[table_name] = min_val - 1
 
-        # Generate a unique ID
-        while True:
-            # Generate base ID
-            base_id = int(np.random.randint(min_val, max_val + 1))
+        # Try to generate a unique ID within the range
+        for _ in range(max_val - min_val + 1):  # Try all possible values in range
+            self._id_counters[table_name] += 1
+            if self._id_counters[table_name] > max_val:
+                self._id_counters[table_name] = min_val
 
-            # Format ID with prefix if specified
-            formatted_id = f"{col_spec['prefix']}{base_id:04d}" if "prefix" in col_spec else base_id
+            candidate_id = self._id_counters[table_name]
 
-            # Check if ID is unique and add to set
-            if formatted_id not in self._generated_ids[table_name]:
-                self._generated_ids[table_name].add(formatted_id)
-                return formatted_id
+            # Check if ID is unique
+            if candidate_id not in self._generated_ids[table_name]:
+                self._generated_ids[table_name].add(candidate_id)
+                return candidate_id
+
+        raise ValueError(
+            f"Could not generate unique ID for {table_name}. "
+            f"All IDs in range {min_val}-{max_val} have been used."
+        )
 
     def _generate_correlated_id(self, parent_table: str) -> Union[int, str]:
         """Generate a correlated ID from a parent table."""
         if not self._generated_ids.get(parent_table):
             raise ValueError(f"No IDs available for parent table {parent_table}")
-        return np.random.choice(list(self._generated_ids[parent_table]))
+        # Get the raw ID without prefix
+        parent_ids = [
+            int(id_val.split('-')[-1]) if isinstance(id_val, str) else id_val
+            for id_val in self._generated_ids[parent_table]
+        ]
+        return np.random.choice(parent_ids)
 
     def _extract_parent_table(self, col_name: str) -> str:
         """Extract parent table name from column name."""
@@ -167,203 +184,105 @@ class SyntheticDataGenerator:
     def _clear_generated_ids(self):
         """Clear all generated IDs."""
         self._generated_ids = {}
-
-    async def fit_synthesizer(
-        self,
-        table_name: str,
-        schema: Dict[str, Dict[str, Any]]
-    ) -> None:
-        """Fit a synthesizer for the given table schema."""
-        metadata = self.create_metadata(table_name, schema)
-        fitting_size = min(100, 1000)  # Use a small sample size for fitting
-
-        # Generate sample data for fitting
-        sample_data = {}
-        for col_name, col_spec in schema.items():
-            col_type = col_spec["type"]
-            is_correlated = col_spec.get("correlated", False)
-
-            if is_correlated and col_name.endswith("_id"):
-                # For correlated fields, use IDs from parent table
-                parent_table = self._extract_parent_table(col_name)
-                if parent_table not in self._generated_ids:
-                    raise ValueError(f"Parent table {parent_table} must be generated before {table_name}")
-                parent_ids = list(self._generated_ids[parent_table])
-                sample_data[col_name] = [
-                    np.random.choice(parent_ids) for _ in range(fitting_size)
-                ]
-            elif col_type == "int":
-                min_val = col_spec.get("min", 0)
-                max_val = col_spec.get("max", 100)
-                if col_name.endswith("_id"):
-                    # Generate unique IDs for primary keys
-                    unique_ids = set()
-                    while len(unique_ids) < fitting_size:
-                        unique_ids.add(self._generate_unique_id(table_name, col_spec))
-                    sample_data[col_name] = list(unique_ids)
-                else:
-                    sample_data[col_name] = [
-                        np.random.randint(min_val, max_val + 1)
-                        for _ in range(fitting_size)
-                    ]
-            elif col_type == "float":
-                min_val = col_spec.get("min", 0.0)
-                max_val = col_spec.get("max", 1.0)
-                sample_data[col_name] = [
-                    np.random.uniform(min_val, max_val)
-                    for _ in range(fitting_size)
-                ]
-            elif col_type == "category":
-                categories = col_spec.get("categories", [])
-                sample_data[col_name] = [
-                    np.random.choice(categories)
-                    for _ in range(fitting_size)
-                ]
-            elif col_type == "datetime":
-                if "generator" in col_spec:
-                    generator_str = col_spec["generator"]
-                    if generator_str.startswith("faker."):
-                        sample_data[col_name] = [
-                            self._generate_faker_value(generator_str.split(".", 1)[1])
-                            for _ in range(fitting_size)
-                        ]
-                    elif generator_str.startswith("mimesis."):
-                        sample_data[col_name] = [
-                            self._generate_mimesis_value(generator_str)
-                            for _ in range(fitting_size)
-                        ]
-                else:
-                    # Default to current year's range
-                    current_year = datetime.now().year
-                    start = datetime(current_year, 1, 1)
-                    end = datetime(current_year, 12, 31)
-                    sample_data[col_name] = [
-                        start + timedelta(
-                            seconds=np.random.randint(0, int((end - start).total_seconds()))
-                        )
-                        for _ in range(fitting_size)
-                    ]
-            elif col_type == "string":
-                if "generator" in col_spec:
-                    generator_str = col_spec["generator"]
-                    if generator_str == "faker":
-                        sample_data[col_name] = [
-                            self._generate_faker_value(col_spec.get("type", "string"))
-                            for _ in range(fitting_size)
-                        ]
-                    elif generator_str.startswith("faker."):
-                        sample_data[col_name] = [
-                            self._generate_faker_value(generator_str.split(".", 1)[1])
-                            for _ in range(fitting_size)
-                        ]
-                    elif generator_str.startswith("mimesis."):
-                        sample_data[col_name] = [
-                            self._generate_mimesis_value(generator_str)
-                            for _ in range(fitting_size)
-                        ]
-                else:
-                    # Default to random string
-                    sample_data[col_name] = [
-                        ''.join(np.random.choice(list('abcdefghijklmnopqrstuvwxyz'), size=10))
-                        for _ in range(fitting_size)
-                    ]
-
-        # Create DataFrame and fit synthesizer
-        df = pd.DataFrame(sample_data)
-        synthesizer = GaussianCopulaSynthesizer(metadata)
-        synthesizer.fit(df)
-        self.synthesizers[table_name] = synthesizer
+        self._id_counters = {}
 
     async def generate_synthetic_data(
         self,
         table_name: str,
         schema: Dict[str, Dict[str, Any]],
-        rows: int = 1000
+        rows: int
     ) -> Dict[str, List[Any]]:
         """Generate synthetic data for a table."""
-        # Initialize result dictionary with empty lists for all columns
-        result: Dict[str, List[Any]] = {col_name: [] for col_name in schema.keys()}
-
-        # Generate parent tables first if needed
-        parent_tables = set()
-        for col_name, col_spec in schema.items():
-            if col_spec.get("correlated", False):
-                parent_table = self._extract_parent_table(col_name)
-                parent_tables.add((parent_table, col_name))
-
-        # Generate parent table data if not already generated
-        for parent_table, col_name in parent_tables:
-            if parent_table not in self._generated_ids or not self._generated_ids[parent_table]:
-                if hasattr(self, 'default_schemas') and parent_table in self.default_schemas:
-                    parent_schema = self.default_schemas[parent_table]
-                    await self.generate_synthetic_data(parent_table, parent_schema, rows)
-                else:
-                    raise ValueError(f"Parent table {parent_table} schema not found")
+        data: Dict[str, List[Any]] = {}
 
         # Generate data for each column
-        for _ in range(rows):
-            for col_name, col_spec in schema.items():
-                col_type = col_spec["type"]
-                value = None
+        for col_name, col_spec in schema.items():
+            generator = col_spec.get("generator", "numpy")
 
-                if col_name.endswith("_id") and not col_spec.get("correlated", False):
-                    # Generate unique ID
-                    base_value = self._generate_unique_id(table_name, col_spec)
-                    # Apply prefix if specified
-                    if "prefix" in col_spec and isinstance(base_value, int):
-                        value = f"{col_spec['prefix']}{base_value:04d}"
-                    else:
-                        value = base_value
-                elif col_spec.get("correlated", False):
-                    # Generate correlated ID from parent table
+            if generator == "faker":
+                # Handle legacy faker.method format
+                if "." in col_spec.get("type", ""):
+                    method_name = col_spec["type"].split(".")[-1]
+                else:
+                    method_name = self._map_faker_type(col_spec.get("type", "text"))
+
+                values = []
+                for _ in range(rows):
+                    value = self._generate_faker_value(method_name)
+                    # Convert date objects to string format
+                    if isinstance(value, (datetime.date, datetime.datetime)):
+                        value = value.isoformat()
+                    values.append(value)
+                data[col_name] = values
+
+            elif generator == "mimesis":
+                data[col_name] = [self._generate_mimesis_value(col_spec["type"]) for _ in range(rows)]
+
+            elif generator == "numpy":
+                if col_spec["type"] == "boolean":
+                    data[col_name] = [bool(x) for x in np.random.choice([True, False], size=rows)]
+                elif "correlated" in col_spec and col_spec["correlated"]:
                     parent_table = self._extract_parent_table(col_name)
-                    base_value = self._generate_correlated_id(parent_table)
-                    # Apply prefix if specified in parent schema
-                    if "prefix" in schema[col_name] and isinstance(base_value, int):
-                        value = f"{schema[col_name]['prefix']}{base_value:04d}"
+                    if not self._generated_ids.get(parent_table):
+                        raise ValueError(f"Parent table {parent_table} must be generated before {table_name}")
+                    data[col_name] = [
+                        self._generate_correlated_id(parent_table)
+                        for _ in range(rows)
+                    ]
+                elif col_spec["type"] in ["integer", "int"]:
+                    if col_name.endswith("_id"):
+                        # Generate unique IDs
+                        data[col_name] = []
+                        for _ in range(rows):
+                            id_val = self._generate_unique_id(table_name, col_spec)
+                            # Add prefix if specified
+                            if "prefix" in col_spec:
+                                id_val = f"{col_spec['prefix']}{id_val}"
+                            data[col_name].append(id_val)
+                            # Store raw ID for relationships
+                            if isinstance(id_val, str) and "-" in id_val:
+                                raw_id = int(id_val.split("-")[-1])
+                                if table_name not in self._generated_ids:
+                                    self._generated_ids[table_name] = set()
+                                self._generated_ids[table_name].add(raw_id)
+                            else:
+                                if table_name not in self._generated_ids:
+                                    self._generated_ids[table_name] = set()
+                                self._generated_ids[table_name].add(id_val)
                     else:
-                        value = base_value
-                elif col_spec.get("generator") == "faker":
-                    # Handle faker generator with type or faker_type
-                    faker_type = col_spec.get("faker_type", col_type)
-                    value = self._generate_faker_value(faker_type)
-                elif col_type in ("int", "integer"):
-                    min_val = col_spec.get("min", 0)
-                    max_val = col_spec.get("max", 100)
-                    value = int(np.random.randint(min_val, max_val + 1))
-                elif col_type == "float":
-                    value = np.random.uniform(col_spec.get("min", 0.0), col_spec.get("max", 1.0))
-                elif col_type == "datetime":
-                    if "generator" in col_spec:
-                        value = self._generate_faker_value(col_spec["generator"])
-                    else:
-                        value = self._generate_faker_value("date_time_this_decade")
-                elif col_type == "category":
-                    value = np.random.choice(col_spec["categories"])
-                elif col_type == "boolean":
-                    value = bool(np.random.choice([True, False]))
-                elif col_type == "string":
-                    # Handle string type with categories or generator
-                    if "categories" in col_spec:
-                        value = np.random.choice(col_spec["categories"])
-                    elif "generator" in col_spec:
-                        if col_spec["generator"] == "faker":
-                            value = self._generate_faker_value(col_spec.get("faker_type", "text"))
-                        elif col_spec["generator"] == "mimesis":
-                            value = self._generate_mimesis_value(col_spec.get("mimesis_type", "text"))
-                        elif "." in col_spec["generator"]:
-                            # Handle legacy faker.method format
-                            value = self._generate_faker_value(col_spec["generator"])
-                    else:
-                        value = self._generate_faker_value("text")
+                        # Regular integer values
+                        min_val = col_spec.get("min", 0)
+                        max_val = col_spec.get("max", 100)
+                        data[col_name] = [
+                            int(x) for x in np.random.randint(min_val, max_val + 1, size=rows)
+                        ]
+                elif col_spec["type"] == "float":
+                    min_val = float(col_spec.get("min", 0.0))
+                    max_val = float(col_spec.get("max", 1.0))
+                    data[col_name] = [
+                        float(x) for x in np.random.uniform(min_val, max_val, size=rows)
+                    ]
+                elif col_spec["type"] == "category":
+                    categories = col_spec.get("categories", [])
+                    data[col_name] = list(np.random.choice(categories, size=rows))
+                elif col_spec["type"] == "string" and "categories" in col_spec:
+                    categories = col_spec.get("categories", [])
+                    data[col_name] = list(np.random.choice(categories, size=rows))
+                else:
+                    # Default to string type
+                    data[col_name] = [str(x) for x in range(rows)]
 
-                result[col_name].append(value)
+        # Convert all numpy types to native Python types for JSON serialization
+        for col_name in data:
+            if isinstance(data[col_name], np.ndarray):
+                data[col_name] = data[col_name].tolist()
+            data[col_name] = [
+                int(x) if isinstance(x, np.integer)
+                else float(x) if isinstance(x, np.floating)
+                else bool(x) if isinstance(x, np.bool_)
+                else str(x) if isinstance(x, np.str_)
+                else x
+                for x in data[col_name]
+            ]
 
-        # Store generated IDs for correlated columns
-        for col_name, values in result.items():
-            if col_name.endswith("_id") and not schema[col_name].get("correlated", False):
-                if table_name not in self._generated_ids:
-                    self._generated_ids[table_name] = set()
-                self._generated_ids[table_name].update(values)
-
-        return result
+        return data

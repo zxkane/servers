@@ -238,3 +238,41 @@ async def test_tool_mapping_completeness(server):
             assert "customers" in result
         else:
             assert all(table in result for table in ["customers", "policies", "claims"])
+
+
+@pytest.mark.asyncio
+async def test_json_serialization(server):
+    """Test that numeric values are properly serializable."""
+    # Test with small row count that previously caused int64 serialization error
+    params = {
+        "rows": 10
+    }
+
+    # Call the generate_insurance_data tool
+    result = await server.handle_generate_insurance_data(params)
+
+    # Verify all tables are present
+    assert all(table in result for table in ["customers", "policies", "claims"])
+
+    # Verify numeric fields are Python native types
+    customers = result["customers"]
+    assert all(isinstance(x, int) for x in customers["customer_id"])
+    assert all(isinstance(x, int) for x in customers["credit_score"])
+    assert all(isinstance(x, int) for x in customers["age"])
+
+    policies = result["policies"]
+    assert all(isinstance(x, float) for x in policies["premium"])
+    assert all(isinstance(x, float) for x in policies["deductible"])
+    assert all(isinstance(x, int) for x in policies["coverage_amount"])
+    assert all(isinstance(x, int) for x in policies["risk_score"])
+
+    claims = result["claims"]
+    assert all(isinstance(x, int) for x in claims["claim_id"])
+    assert all(isinstance(x, float) for x in claims["amount"])
+
+    # Verify we can JSON serialize the result
+    import json
+    try:
+        json.dumps({"tables": result})
+    except TypeError as e:
+        pytest.fail(f"JSON serialization failed: {str(e)}")
