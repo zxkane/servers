@@ -1,27 +1,46 @@
 # MCP Data Generation Server
 
-This server implements the Model Context Protocol (MCP) to provide notional data generation capabilities using Python libraries including Faker, Mimesis, NumPy, and SDV.
+## Overview
+A Model Context Protocol server for generating synthetic data across various domains. Leverages open-source libraries like Faker, Mimesis, NumPy, and SDV to create realistic, customizable datasets.
 
-## Features
+## Tools
 
-- Generate synthetic data tables based on specified schemas and parameters
-- Support for multiple data generation libraries (Faker, Mimesis, SDV)
-- Configurable row counts and column specifications
-- Export data in CSV format
+### generate_data
+Generate synthetic data based on specified schemas and parameters.
+
+**Input:**
+- `rows` (integer, required): Number of rows to generate
+- `tables` (array[string], required): List of table names to generate
+- `schemas` (object, required): Schema definitions for each table
+  - Table schema format:
+    ```json
+    {
+      "column_name": {
+        "type": "string|integer|float|category|boolean",
+        "min": number,  // Optional, for numeric types
+        "max": number,  // Optional, for numeric types
+        "categories": ["value1", "value2"]  // Required for category type
+      }
+    }
+    ```
+
+**Returns:**
+- Generated data tables matching the specified schemas
 
 ## Installation
 
+Using `uv` (recommended):
+```bash
+uvx mcp-server-datagen
+```
+
+Using `pip`:
 ```bash
 pip install mcp-server-datagen
 ```
 
-## Usage
-
-The server exposes MCP tools for generating notional data:
-
-- `generate_tables`: Generate multiple related tables based on a schema
-- `define_schema`: Define table schemas with column specifications
-- `export_csv`: Export generated data to CSV files
+## Configuration
+No additional configuration required. The server automatically configures data generation libraries based on schema specifications.
 
 ## Development
 
@@ -31,12 +50,32 @@ uv venv
 uv pip install -e ".[dev]"
 ```
 
-2. Run type checking:
+2. Run tests:
+```bash
+uv run pytest tests/unit/
+```
+
+3. Run type checking:
 ```bash
 uv run --frozen pyright
 ```
 
-3. Build package:
+4. Run linting:
 ```bash
-uv build
+uv run ruff check .
 ```
+
+## Debugging
+
+Common issues:
+1. Null values in generated data
+   - Ensure correct type specification in schema
+   - Verify min/max values are within valid ranges
+   - Check category lists are non-empty for categorical fields
+
+2. Type validation errors
+   - Verify schema types match supported types
+   - Ensure numeric ranges are appropriate for the type
+
+## License
+MIT License

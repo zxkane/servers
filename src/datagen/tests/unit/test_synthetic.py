@@ -112,3 +112,37 @@ async def test_multiple_table_generation(data_generator):
 
     # All policy customer_ids should exist in customers table
     assert policy_customer_ids.issubset(customer_ids)
+
+
+@pytest.mark.asyncio
+async def test_integer_type_handling(data_generator):
+    """Test handling of both 'integer' and 'int' type fields."""
+    schema = {
+        "age": {"type": "integer", "min": 25, "max": 65},
+        "claims": {"type": "integer", "min": 0, "max": 3},
+        "count": {"type": "int", "min": 1, "max": 10},
+    }
+
+    rows = 100
+    data = await data_generator.generate_synthetic_data("test_table", schema, rows)
+
+    # Verify all columns are present
+    assert set(data.keys()) == set(schema.keys())
+
+    # Verify number of rows
+    assert all(len(values) == rows for values in data.values())
+
+    # Verify age field (integer type)
+    assert all(isinstance(x, (int, np.integer)) for x in data["age"]), "Age values should be integers"
+    assert all(25 <= x <= 65 for x in data["age"]), "Age values should be within range"
+    assert not any(x is None for x in data["age"]), "Age values should not be null"
+
+    # Verify claims field (integer type)
+    assert all(isinstance(x, (int, np.integer)) for x in data["claims"]), "Claims values should be integers"
+    assert all(0 <= x <= 3 for x in data["claims"]), "Claims values should be within range"
+    assert not any(x is None for x in data["claims"]), "Claims values should not be null"
+
+    # Verify count field (int type)
+    assert all(isinstance(x, (int, np.integer)) for x in data["count"]), "Count values should be integers"
+    assert all(1 <= x <= 10 for x in data["count"]), "Count values should be within range"
+    assert not any(x is None for x in data["count"]), "Count values should not be null"

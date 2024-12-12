@@ -52,6 +52,7 @@ class SyntheticDataGenerator:
         type_mapping = {
             "string": "categorical",
             "int": "numerical",
+            "integer": "numerical",
             "float": "numerical",
             "datetime": "datetime",
             "boolean": "boolean",
@@ -304,8 +305,10 @@ class SyntheticDataGenerator:
                         value = np.random.choice(col_spec["categories"])
                     else:
                         value = self._generate_faker_value("faker.word")
-                elif col_type == "int":
-                    value = np.random.randint(col_spec.get("min", 0), col_spec.get("max", 100))
+                elif col_type in ("int", "integer"):
+                    min_val = col_spec.get("min", 0)
+                    max_val = col_spec.get("max", 100)
+                    value = int(np.random.randint(min_val, max_val + 1))
                 elif col_type == "float":
                     value = np.random.uniform(col_spec.get("min", 0.0), col_spec.get("max", 1.0))
                 elif col_type == "datetime":

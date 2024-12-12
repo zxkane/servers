@@ -150,29 +150,71 @@ class DataGenServer:
         return [
             Tool(
                 name="generate_tables",
-                description="Generate multiple tables of notional data",
+                description="""Generate synthetic data tables with realistic values and relationships.
+
+                This tool creates multiple tables of synthetic data based on provided schemas. It supports:
+                - Basic data types (integer, float, string, boolean)
+                - Categorical data with custom categories
+                - Realistic personal data (names, emails, addresses) via Faker
+                - Numeric data with configurable ranges via NumPy
+                - Related tables with correlated IDs
+
+                Default schemas are available for common scenarios (customers, policies, claims).""",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "tables": {
                             "type": "array",
-                            "items": {"type": "string"}
+                            "items": {"type": "string"},
+                            "description": "List of table names to generate. Use default schemas or provide custom schemas.",
+                            "examples": ["customers", "policies", "claims"]
                         },
-                        "rows": {"type": "integer", "minimum": 1},
+                        "rows": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Number of rows to generate for each table. Default: 1000"
+                        },
                         "schemas": {
                             "type": "object",
+                            "description": "Custom schema definitions for tables. Optional if using default schemas.",
                             "additionalProperties": {
                                 "type": "object",
+                                "description": "Schema definition for a single table",
                                 "additionalProperties": {
                                     "type": "object",
+                                    "description": "Column definition",
                                     "properties": {
-                                        "type": {"type": "string"},
-                                        "generator": {"type": "string"},
-                                        "min": {"type": "number"},
-                                        "max": {"type": "number"},
+                                        "type": {
+                                            "type": "string",
+                                            "description": """Data type for the column. Valid options:
+                                            - Basic: 'string', 'integer'/'int', 'float', 'boolean'
+                                            - Categorical: 'category'
+                                            - Faker types: 'first_name', 'last_name', 'email', 'phone_number',
+                                              'address', 'date_of_birth', 'text', 'date_this_year', 'date_this_decade'"""
+                                        },
+                                        "generator": {
+                                            "type": "string",
+                                            "description": """Library to use for generating values. Valid options:
+                                            - 'numpy': For numeric and categorical data
+                                            - 'faker': For realistic personal/business data
+                                            - 'mimesis': Alternative to Faker for personal data"""
+                                        },
+                                        "min": {
+                                            "type": "number",
+                                            "description": "Minimum value for numeric types (integer/float). Required for numeric types."
+                                        },
+                                        "max": {
+                                            "type": "number",
+                                            "description": "Maximum value for numeric types (integer/float). Required for numeric types."
+                                        },
                                         "categories": {
                                             "type": "array",
-                                            "items": {"type": "string"}
+                                            "items": {"type": "string"},
+                                            "description": "List of valid categories for 'category' type. Required for category type."
+                                        },
+                                        "correlated": {
+                                            "type": "boolean",
+                                            "description": "If true, generates values that match existing IDs in other tables. Used for foreign keys."
                                         }
                                     }
                                 }
