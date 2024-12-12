@@ -60,12 +60,25 @@ class SyntheticDataGenerator:
         }
         return type_mapping.get(data_type, "categorical")
 
-    def _generate_faker_value(self, generator: str) -> Any:
-        """Generate value using Faker."""
-        if not generator.startswith("faker."):
-            return None
+    def _map_faker_type(self, data_type: str) -> str:
+        """Map data type to Faker method."""
+        type_mapping = {
+            "string": "text",  # Default for generic strings
+            "first_name": "first_name",
+            "last_name": "last_name",
+            "email": "email",
+            "phone_number": "phone_number",
+            "address": "street_address",
+            "text": "text",
+            "date_this_year": "date_this_year",
+            "date_this_decade": "date_this_decade",
+            "date_of_birth": "date_of_birth"
+        }
+        return type_mapping.get(data_type, "text")
 
-        method_name = generator.split(".", 1)[1]
+    def _generate_faker_value(self, data_type: str) -> Any:
+        """Generate value using Faker."""
+        method_name = self._map_faker_type(data_type)
         if hasattr(self.faker, method_name):
             return getattr(self.faker, method_name)()
         return None
@@ -211,7 +224,7 @@ class SyntheticDataGenerator:
                     generator_str = col_spec["generator"]
                     if generator_str.startswith("faker."):
                         sample_data[col_name] = [
-                            self._generate_faker_value(generator_str)
+                            self._generate_faker_value(generator_str.split(".", 1)[1])
                             for _ in range(fitting_size)
                         ]
                     elif generator_str.startswith("mimesis."):
@@ -233,9 +246,14 @@ class SyntheticDataGenerator:
             elif col_type == "string":
                 if "generator" in col_spec:
                     generator_str = col_spec["generator"]
-                    if generator_str.startswith("faker."):
+                    if generator_str == "faker":
                         sample_data[col_name] = [
-                            self._generate_faker_value(generator_str)
+                            self._generate_faker_value(col_spec.get("type", "string"))
+                            for _ in range(fitting_size)
+                        ]
+                    elif generator_str.startswith("faker."):
+                        sample_data[col_name] = [
+                            self._generate_faker_value(generator_str.split(".", 1)[1])
                             for _ in range(fitting_size)
                         ]
                     elif generator_str.startswith("mimesis."):
@@ -295,16 +313,22 @@ class SyntheticDataGenerator:
                     # Generate correlated ID from parent table
                     parent_table = self._extract_parent_table(col_name)
                     value = self._generate_correlated_id(parent_table)
+                # Handle faker types and string types with faker generator
+                elif col_spec.get("generator") == "faker":
+                    if col_type in {"first_name", "last_name", "email", "phone_number", "address", "text", "date_this_year", "date_this_decade", "date_of_birth"}:
+                        value = self._generate_faker_value(col_type)
+                    else:
+                        value = self._generate_faker_value("text")
                 elif col_type == "string":
                     if "generator" in col_spec:
                         if col_spec["generator"].startswith("faker."):
-                            value = self._generate_faker_value(col_spec["generator"])
+                            value = self._generate_faker_value(col_spec["generator"].split(".", 1)[1])
                         elif col_spec["generator"].startswith("mimesis."):
                             value = self._generate_mimesis_value(col_spec["generator"])
                     elif "categories" in col_spec:
                         value = np.random.choice(col_spec["categories"])
                     else:
-                        value = self._generate_faker_value("faker.word")
+                        value = self._generate_faker_value("text")
                 elif col_type in ("int", "integer"):
                     min_val = col_spec.get("min", 0)
                     max_val = col_spec.get("max", 100)
@@ -315,7 +339,7 @@ class SyntheticDataGenerator:
                     if "generator" in col_spec:
                         value = self._generate_faker_value(col_spec["generator"])
                     else:
-                        value = self._generate_faker_value("faker.date_time_this_decade")
+                        value = self._generate_faker_value("date_time_this_decade")
                 elif col_type == "category":
                     value = np.random.choice(col_spec["categories"])
 

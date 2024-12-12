@@ -146,3 +146,58 @@ async def test_integer_type_handling(data_generator):
     assert all(isinstance(x, (int, np.integer)) for x in data["count"]), "Count values should be integers"
     assert all(1 <= x <= 10 for x in data["count"]), "Count values should be within range"
     assert not any(x is None for x in data["count"]), "Count values should not be null"
+
+
+@pytest.mark.asyncio
+async def test_faker_string_generation(data_generator):
+    """Test that faker properly generates string values."""
+    # Test generic string type with faker generator
+    schema = {
+        "customer_name": {
+            "type": "string",
+            "generator": "faker"
+        }
+    }
+    data = await data_generator.generate_synthetic_data("test", schema, 10)
+    assert all(isinstance(x, str) and x is not None for x in data["customer_name"]), "Customer names should be non-null strings"
+    assert all(len(x) > 0 for x in data["customer_name"]), "Customer names should not be empty"
+
+    # Test specific faker types
+    schema = {
+        "first_name": {
+            "type": "first_name",
+            "generator": "faker"
+        },
+        "email": {
+            "type": "email",
+            "generator": "faker"
+        },
+        "address": {
+            "type": "address",
+            "generator": "faker"
+        }
+    }
+    data = await data_generator.generate_synthetic_data("test", schema, 10)
+
+    # Verify first_name generation
+    assert all(isinstance(x, str) and x is not None for x in data["first_name"]), "First names should be non-null strings"
+    assert all(len(x) > 0 for x in data["first_name"]), "First names should not be empty"
+
+    # Verify email generation
+    assert all(isinstance(x, str) and x is not None for x in data["email"]), "Emails should be non-null strings"
+    assert all("@" in x for x in data["email"]), "Emails should contain @ symbol"
+
+    # Verify address generation
+    assert all(isinstance(x, str) and x is not None for x in data["address"]), "Addresses should be non-null strings"
+    assert all(len(x) > 0 for x in data["address"]), "Addresses should not be empty"
+
+    # Test legacy faker.method format still works
+    schema = {
+        "legacy_name": {
+            "type": "string",
+            "generator": "faker.name"
+        }
+    }
+    data = await data_generator.generate_synthetic_data("test", schema, 10)
+    assert all(isinstance(x, str) and x is not None for x in data["legacy_name"]), "Legacy faker format should still work"
+    assert all(len(x) > 0 for x in data["legacy_name"]), "Legacy faker names should not be empty"

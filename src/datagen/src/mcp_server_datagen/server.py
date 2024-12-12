@@ -155,9 +155,14 @@ class DataGenServer:
                 This tool creates multiple tables of synthetic data based on provided schemas. It supports:
                 - Basic data types (integer, float, string, boolean)
                 - Categorical data with custom categories
-                - Realistic personal data (names, emails, addresses) via Faker
+                - Realistic personal data via Faker (names, emails, addresses)
                 - Numeric data with configurable ranges via NumPy
                 - Related tables with correlated IDs
+
+                When using the 'faker' generator, you must specify one of the supported faker types in the 'type' field:
+                - Personal: first_name, last_name, email, phone_number, address
+                - Dates: date_of_birth, date_this_year, date_this_decade
+                - Text: text (default for generic strings)
 
                 Default schemas are available for common scenarios (customers, policies, claims).""",
                 inputSchema={
@@ -189,14 +194,17 @@ class DataGenServer:
                                             "description": """Data type for the column. Valid options:
                                             - Basic: 'string', 'integer'/'int', 'float', 'boolean'
                                             - Categorical: 'category'
-                                            - Faker types: 'first_name', 'last_name', 'email', 'phone_number',
-                                              'address', 'date_of_birth', 'text', 'date_this_year', 'date_this_decade'"""
+                                            - Faker types (use with 'faker' generator): 'first_name', 'last_name', 'email',
+                                              'phone_number', 'address', 'date_of_birth', 'text', 'date_this_year',
+                                              'date_this_decade'. Generic 'string' type defaults to 'text'."""
                                         },
                                         "generator": {
                                             "type": "string",
                                             "description": """Library to use for generating values. Valid options:
                                             - 'numpy': For numeric and categorical data
-                                            - 'faker': For realistic personal/business data
+                                            - 'faker': For realistic personal/business data. Must be used with a supported
+                                              faker type (see type field). Will generate null values if used with
+                                              unsupported types.
                                             - 'mimesis': Alternative to Faker for personal data"""
                                         },
                                         "min": {
