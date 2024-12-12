@@ -228,3 +228,34 @@ async def test_boolean_type_handling(data_generator):
         # Verify we get both True and False values
         assert any(x is True for x in data[field]), f"{field} should have some True values"
         assert any(x is False for x in data[field]), f"{field} should have some False values"
+
+@pytest.mark.asyncio
+async def test_string_prefix_generation(data_generator):
+    """Test generation of string IDs with prefixes."""
+    schema = {
+        "policy_id": {
+            "type": "integer",
+            "generator": "numpy",
+            "min": 100000,
+            "max": 999999,
+            "prefix": "POL-2024-"
+        }
+    }
+
+    # Generate 100 policy IDs
+    data = await data_generator.generate_synthetic_data("test", schema, rows=100)
+
+    # Verify all IDs have correct prefix
+    assert all(str(id).startswith("POL-2024-") for id in data["policy_id"])
+
+    # Verify all IDs are unique
+    assert len(set(data["policy_id"])) == 100
+
+    # Verify numeric portion is within range
+    numeric_parts = [int(str(id)[len("POL-2024-"):]) for id in data["policy_id"]]
+    assert all(100000 <= num <= 999999 for num in numeric_parts)
+
+    # Test with larger dataset
+    large_data = await data_generator.generate_synthetic_data("test", schema, rows=10000)
+    assert len(set(large_data["policy_id"])) == 10000
+    assert all(str(id).startswith("POL-2024-") for id in large_data["policy_id"])

@@ -21,10 +21,11 @@ async def test_list_tools(server):
 
     # Verify required tools are present
     tool_names = [tool.name for tool in tools]
-    assert "generate_tables" in tool_names
+    assert "generate_custom_tables" in tool_names
+    assert "generate_insurance_data" in tool_names
 
     # Verify tool schema
-    generate_tool = next(tool for tool in tools if tool.name == "generate_tables")
+    generate_tool = next(tool for tool in tools if tool.name == "generate_custom_tables")
     assert generate_tool.inputSchema is not None
     assert "tables" in generate_tool.inputSchema["properties"]
     assert "rows" in generate_tool.inputSchema["properties"]
@@ -161,3 +162,47 @@ async def test_csv_export_format(server):
         assert len(df_read) == 100
         assert all(col in df_read.columns
                   for col in server.default_schemas["customers"].keys())
+
+
+@pytest.mark.asyncio
+async def test_generate_insurance_data(server):
+    """Test the generate_insurance_data tool with default schemas."""
+    # Test parameters
+    params = {
+        "rows": 500  # Test with a moderate dataset size
+    }
+
+    # Call the tool
+    result = await server.handle_generate_insurance_data(params)
+
+    # Verify all required tables are present
+    required_tables = ["customers", "policies", "claims"]
+    assert all(table in result for table in required_tables)
+
+    # Verify row counts
+    assert all(len(next(iter(table_data.values()))) == 500
+              for table_name, table_data in result.items())
+
+    # Verify schema compliance
+    for table_name, table_data in result.items():
+        expected_columns = server.default_schemas[table_name].keys()
+        assert all(col in table_data for col in expected_columns)
+
+    # Verify data relationships
+    customers = result["customers"]
+    policies = result["policies"]
+    claims = result["claims"]
+
+    # Customer IDs from policies should exist in customers
+    customer_ids = set(customers["customer_id"])
+    policy_customer_ids = set(policies["customer_id"])
+    assert policy_customer_ids.issubset(customer_ids)
+
+    # Policy IDs from claims should exist in policies
+    policy_ids = set(policies["policy_id"])
+    claim_policy_ids = set(claims["policy_id"])
+    assert claim_policy_ids.issubset(policy_ids)
+
+    # Verify policy IDs have correct prefix format
+    assert all(str(pid).startswith("POL-2024-") for pid in policies["policy_id"])
+    assert len(set(policies["policy_id"])) == 500  # Verify uniqueness

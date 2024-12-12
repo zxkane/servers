@@ -42,99 +42,93 @@ class DataGenServer:
                     "type": "address",
                     "generator": "faker"
                 },
-                "date_of_birth": {
-                    "type": "date_of_birth",
-                    "generator": "faker"
+                "age": {
+                    "type": "int",
+                    "min": 18,
+                    "max": 100
                 },
                 "credit_score": {
                     "type": "int",
-                    "generator": "numpy",
                     "min": 300,
                     "max": 850
+                },
+                "active": {
+                    "type": "boolean"
                 }
             },
             "policies": {
                 "policy_id": {
-                    "type": "int",
+                    "type": "integer",
                     "generator": "numpy",
                     "min": 100000,
-                    "max": 999999
+                    "max": 999999,
+                    "prefix": "POL-2024-"
                 },
                 "customer_id": {
                     "type": "int",
-                    "generator": "numpy",
                     "min": 10000,
                     "max": 99999,
                     "correlated": True
                 },
                 "policy_type": {
                     "type": "category",
-                    "generator": "numpy",
-                    "categories": ["auto", "home", "life", "health"]
+                    "categories": ["Auto", "Home", "Life", "Health"]
                 },
                 "start_date": {
-                    "type": "date_this_decade",
-                    "generator": "faker"
-                },
-                "end_date": {
-                    "type": "date_this_decade",
+                    "type": "date_this_year",
                     "generator": "faker"
                 },
                 "premium": {
                     "type": "float",
-                    "generator": "numpy",
                     "min": 500.0,
                     "max": 5000.0
                 },
-                "coverage_amount": {
+                "deductible": {
                     "type": "float",
-                    "generator": "numpy",
-                    "min": 50000.0,
-                    "max": 1000000.0
+                    "min": 250.0,
+                    "max": 2000.0
+                },
+                "coverage_amount": {
+                    "type": "int",
+                    "min": 50000,
+                    "max": 1000000
+                },
+                "risk_score": {
+                    "type": "int",
+                    "min": 1,
+                    "max": 100
                 },
                 "status": {
                     "type": "category",
-                    "generator": "numpy",
-                    "categories": ["active", "expired", "cancelled", "pending"]
+                    "categories": ["Active", "Pending", "Expired", "Cancelled"]
                 }
             },
             "claims": {
                 "claim_id": {
                     "type": "int",
-                    "generator": "numpy",
-                    "min": 1000000,
-                    "max": 9999999
+                    "min": 100000,
+                    "max": 999999
                 },
                 "policy_id": {
-                    "type": "int",
+                    "type": "integer",
                     "generator": "numpy",
                     "min": 100000,
                     "max": 999999,
+                    "prefix": "POL-2024-",
                     "correlated": True
                 },
                 "date_filed": {
                     "type": "date_this_year",
                     "generator": "faker"
                 },
-                "incident_date": {
-                    "type": "date_this_year",
-                    "generator": "faker"
-                },
-                "claim_type": {
-                    "type": "category",
-                    "generator": "numpy",
-                    "categories": ["accident", "theft", "natural_disaster", "medical", "property_damage"]
-                },
-                "amount_claimed": {
+                "amount": {
                     "type": "float",
-                    "generator": "numpy",
-                    "min": 1000.0,
-                    "max": 100000.0
+                    "min": 100.0,
+                    "max": 50000.0
                 },
                 "status": {
                     "type": "category",
-                    "generator": "numpy",
-                    "categories": ["pending", "approved", "denied", "in_review"]
+                    "categories": ["Filed", "Under Review", "Approved", "Denied"]
                 },
                 "description": {
                     "type": "text",
@@ -149,8 +143,8 @@ class DataGenServer:
         """List available data generation tools."""
         return [
             Tool(
-                name="generate_tables",
-                description="""Generate synthetic data tables with realistic values and relationships.
+                name="generate_custom_tables",  # Renamed from generate_tables
+                description="""Generate synthetic data tables with custom schemas.
 
                 This tool creates multiple tables of synthetic data based on provided schemas. It supports:
                 - Basic data types (integer, float, string, boolean)
@@ -231,6 +225,33 @@ class DataGenServer:
                     },
                     "required": ["tables"]
                 }
+            ),
+            Tool(
+                name="generate_insurance_data",
+                description="""Generate insurance-related data tables using default schemas.
+
+                Generates three tables with realistic insurance data:
+                - customers: Customer information (names, contact details, etc.)
+                - policies: Insurance policy details with proper ID prefixes
+                - claims: Claims data with relationships to policies
+
+                All tables maintain referential integrity and include:
+                - Customers: IDs, names, contact info, credit scores
+                - Policies: IDs with prefixes, types, dates, premiums, coverage
+                - Claims: IDs, dates, types, amounts, status updates
+
+                The data is generated using predefined schemas optimized for insurance scenarios.""",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "rows": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Number of rows to generate for each table"
+                        }
+                    },
+                    "required": ["rows"]
+                }
             )
         ]
 
@@ -265,6 +286,26 @@ class DataGenServer:
             raise e
         except Exception as e:
             # Wrap unexpected errors in McpError
+            raise McpError(f"Error generating data: {str(e)}")
+
+    async def handle_generate_insurance_data(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle generate_insurance_data tool requests."""
+        rows = params.get("rows", 1000)
+        if rows <= 0:
+            raise ValueError("Row count must be positive")
+
+        results = {}
+        try:
+            for table_name in ["customers", "policies", "claims"]:
+                schema = self.default_schemas[table_name]
+                data = await self.generator.generate_synthetic_data(
+                    table_name=table_name,
+                    schema=schema,
+                    rows=rows
+                )
+                results[table_name] = data
+            return results
+        except Exception as e:
             raise McpError(f"Error generating data: {str(e)}")
 
 
