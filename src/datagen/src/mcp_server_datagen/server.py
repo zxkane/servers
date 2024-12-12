@@ -271,29 +271,38 @@ class DataGenServer:
         if rows <= 0:
             raise ValueError("Row count must be positive")
 
-        results = {}
-        try:
-            for table_name in tables:
-                if table_name not in self.default_schemas and table_name not in custom_schemas:
-                    raise ValueError(f"Unknown table: {table_name}")
+        # Validate and prepare schemas
+        schemas = {}
+        for table_name in tables:
+            if table_name in custom_schemas:
+                schemas[table_name] = custom_schemas[table_name]
+            elif table_name in self.default_schemas:
+                schemas[table_name] = self.default_schemas[table_name]
+            else:
+                raise ValueError(f"No schema found for table {table_name}")
 
-                # Use custom schema if provided, otherwise use default
-                schema = custom_schemas.get(table_name, self.default_schemas.get(table_name, {}))
-                data = await self.generator.generate_synthetic_data(
-                    table_name=table_name,
-                    schema=schema,
-                    rows=rows
+        # Clear previously generated IDs
+        self.generator._clear_generated_ids()
+
+        # Generate tables in correct order to maintain relationships
+        result = {}
+        table_order = ["customers", "policies", "claims"]
+        ordered_tables = sorted(
+            tables,
+            key=lambda x: table_order.index(x) if x in table_order else len(table_order)
+        )
+
+        for table_name in ordered_tables:
+            try:
+                result[table_name] = await self.generator.generate_synthetic_data(
+                    table_name,
+                    schemas[table_name],
+                    rows
                 )
-                results[table_name] = data
+            except ValueError as e:
+                raise ValueError(f"Failed to generate table {table_name}: {str(e)}")
 
-            return results
-
-        except ValueError as e:
-            # Re-raise validation errors directly
-            raise e
-        except Exception as e:
-            # Wrap unexpected errors in McpError
-            raise McpError(f"Error generating data: {str(e)}")
+        return result
 
     async def handle_generate_insurance_data(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle generate_insurance_data tool requests."""
@@ -301,19 +310,24 @@ class DataGenServer:
         if rows <= 0:
             raise ValueError("Row count must be positive")
 
-        results = {}
-        try:
-            for table_name in ["customers", "policies", "claims"]:
-                schema = self.default_schemas[table_name]
-                data = await self.generator.generate_synthetic_data(
-                    table_name=table_name,
-                    schema=schema,
-                    rows=rows
+        # Clear previously generated IDs
+        self.generator._clear_generated_ids()
+
+        # Generate tables in correct order to maintain relationships
+        result = {}
+        table_order = ["customers", "policies", "claims"]
+
+        for table_name in table_order:
+            try:
+                result[table_name] = await self.generator.generate_synthetic_data(
+                    table_name,
+                    self.default_schemas[table_name],
+                    rows
                 )
-                results[table_name] = data
-            return results
-        except Exception as e:
-            raise McpError(f"Error generating data: {str(e)}")
+            except ValueError as e:
+                raise ValueError(f"Failed to generate table {table_name}: {str(e)}")
+
+        return result
 
 
 async def serve() -> None:

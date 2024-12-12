@@ -25,15 +25,30 @@ def sample_schema():
 async def test_type_mapping(data_generator, sample_schema):
     """Test type mapping functionality."""
     # Test numpy type mapping
-    assert data_generator._map_type_to_generator("integer") == "numpy"
-    assert data_generator._map_type_to_generator("float") == "numpy"
-    assert data_generator._map_type_to_generator("boolean") == "numpy"
-    assert data_generator._map_type_to_generator("category") == "numpy"
+    generator = data_generator._map_type_to_generator("id", {"type": "integer", "generator": "numpy", "min": 1, "max": 100})
+    assert callable(generator)
+    value = generator()
+    assert isinstance(value, (int, np.integer))
+    assert 1 <= value <= 100
+
+    generator = data_generator._map_type_to_generator("score", {"type": "float", "generator": "numpy", "min": 0.0, "max": 1.0})
+    assert callable(generator)
+    value = generator()
+    assert isinstance(value, (float, np.floating))
+    assert 0.0 <= value <= 1.0
+
+    generator = data_generator._map_type_to_generator("active", {"type": "boolean", "generator": "numpy"})
+    assert callable(generator)
+    assert isinstance(generator(), bool)
 
     # Test faker type mapping
-    assert data_generator._map_type_to_generator("first_name") == "faker"
-    assert data_generator._map_type_to_generator("email") == "faker"
-    assert data_generator._map_type_to_generator("text") == "faker"
+    generator = data_generator._map_type_to_generator("name", {"type": "first_name", "generator": "faker"})
+    assert callable(generator)
+    assert isinstance(generator(), str)
+
+    generator = data_generator._map_type_to_generator("email", {"type": "email", "generator": "faker"})
+    assert callable(generator)
+    assert isinstance(generator(), str)
 
 
 @pytest.mark.asyncio
