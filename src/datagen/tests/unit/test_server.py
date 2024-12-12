@@ -1,7 +1,7 @@
 """Unit tests for MCP data generation server."""
 import pytest
 from typing import Dict
-from mcp_server_datagen.server import DataGenServer
+from mcp_server_datagen.server import DataGenServer, DataGenTools
 
 
 @pytest.fixture
@@ -21,11 +21,11 @@ async def test_list_tools(server):
 
     # Verify required tools are present
     tool_names = [tool.name for tool in tools]
-    assert "generate_custom_tables" in tool_names
-    assert "generate_insurance_data" in tool_names
+    assert DataGenTools.GENERATE_CUSTOM_TABLES.value in tool_names
+    assert DataGenTools.GENERATE_INSURANCE_DATA.value in tool_names
 
     # Verify tool schema
-    generate_tool = next(tool for tool in tools if tool.name == "generate_custom_tables")
+    generate_tool = next(tool for tool in tools if tool.name == DataGenTools.GENERATE_CUSTOM_TABLES.value)
     assert generate_tool.inputSchema is not None
     assert "tables" in generate_tool.inputSchema["properties"]
     assert "rows" in generate_tool.inputSchema["properties"]
@@ -206,3 +206,35 @@ async def test_generate_insurance_data(server):
     # Verify policy IDs have correct prefix format
     assert all(str(pid).startswith("POL-2024-") for pid in policies["policy_id"])
     assert len(set(policies["policy_id"])) == 500  # Verify uniqueness
+
+
+@pytest.mark.asyncio
+async def test_tool_mapping_completeness(server):
+    """Test that all tools in list_tools have corresponding handlers in call_tool."""
+    # Get all available tools
+    tools = await server.list_tools()
+    assert len(tools) > 0
+
+    # Prepare minimal valid arguments for each tool
+    tool_args = {
+        DataGenTools.GENERATE_CUSTOM_TABLES.value: {
+            "tables": ["customers"],
+            "rows": 1
+        },
+        DataGenTools.GENERATE_INSURANCE_DATA.value: {
+            "rows": 1
+        }
+    }
+
+    # Verify each tool can be called successfully through the server's handlers
+    for tool in tools:
+        result = await server.handle_generate_tables(tool_args[tool.name]) \
+            if tool.name == DataGenTools.GENERATE_CUSTOM_TABLES.value \
+            else await server.handle_generate_insurance_data(tool_args[tool.name])
+
+        # Verify result structure
+        assert isinstance(result, Dict)
+        if tool.name == DataGenTools.GENERATE_CUSTOM_TABLES.value:
+            assert "customers" in result
+        else:
+            assert all(table in result for table in ["customers", "policies", "claims"])

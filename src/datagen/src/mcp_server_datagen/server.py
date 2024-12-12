@@ -1,5 +1,6 @@
 import asyncio
 import json
+from enum import Enum
 from typing import Any, Dict, List, Sequence
 
 from mcp.server import Server
@@ -8,6 +9,12 @@ from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
 from mcp.shared.exceptions import McpError
 
 from mcp_server_datagen.synthetic import SyntheticDataGenerator
+
+
+class DataGenTools(str, Enum):
+    """Available data generation tools."""
+    GENERATE_CUSTOM_TABLES = "generate_custom_tables"  # Renamed from generate_tables
+    GENERATE_INSURANCE_DATA = "generate_insurance_data"
 
 
 class DataGenServer:
@@ -143,7 +150,7 @@ class DataGenServer:
         """List available data generation tools."""
         return [
             Tool(
-                name="generate_custom_tables",  # Renamed from generate_tables
+                name=DataGenTools.GENERATE_CUSTOM_TABLES.value,
                 description="""Generate synthetic data tables with custom schemas.
 
                 This tool creates multiple tables of synthetic data based on provided schemas. It supports:
@@ -227,7 +234,7 @@ class DataGenServer:
                 }
             ),
             Tool(
-                name="generate_insurance_data",
+                name=DataGenTools.GENERATE_INSURANCE_DATA.value,
                 description="""Generate insurance-related data tables using default schemas.
 
                 Generates three tables with realistic insurance data:
@@ -324,15 +331,25 @@ async def serve() -> None:
         name: str, arguments: Dict[str, Any]
     ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
         """Handle tool calls."""
-        if name == "generate_tables":
-            result = await datagen_server.handle_generate_tables(arguments)
-            return [
-                TextContent(
-                    type="text",
-                    text=json.dumps({"tables": result}, indent=2)
-                )
-            ]
-        raise McpError(f"Unknown tool: {name}")
+        match name:
+            case DataGenTools.GENERATE_CUSTOM_TABLES.value:
+                result = await datagen_server.handle_generate_tables(arguments)
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps({"tables": result}, indent=2)
+                    )
+                ]
+            case DataGenTools.GENERATE_INSURANCE_DATA.value:
+                result = await datagen_server.handle_generate_insurance_data(arguments)
+                return [
+                    TextContent(
+                        type="text",
+                        text=json.dumps({"tables": result}, indent=2)
+                    )
+                ]
+            case _:
+                raise McpError(f"Unknown tool: {name}")
 
     options = server.create_initialization_options()
     async with stdio_server() as (read_stream, write_stream):
