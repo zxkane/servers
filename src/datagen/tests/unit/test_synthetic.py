@@ -201,3 +201,30 @@ async def test_faker_string_generation(data_generator):
     data = await data_generator.generate_synthetic_data("test", schema, 10)
     assert all(isinstance(x, str) and x is not None for x in data["legacy_name"]), "Legacy faker format should still work"
     assert all(len(x) > 0 for x in data["legacy_name"]), "Legacy faker names should not be empty"
+
+
+@pytest.mark.asyncio
+async def test_boolean_type_handling(data_generator):
+    """Test handling of boolean type fields."""
+    schema = {
+        "active": {"type": "boolean"},
+        "verified": {"type": "boolean"},
+        "premium": {"type": "boolean"}
+    }
+
+    rows = 100
+    data = await data_generator.generate_synthetic_data("test_table", schema, rows)
+
+    # Verify all columns are present
+    assert set(data.keys()) == set(schema.keys())
+
+    # Verify number of rows
+    assert all(len(values) == rows for values in data.values())
+
+    # Verify boolean fields
+    for field in ["active", "verified", "premium"]:
+        assert all(isinstance(x, bool) for x in data[field]), f"{field} values should be booleans"
+        assert not any(x is None for x in data[field]), f"{field} values should not be null"
+        # Verify we get both True and False values
+        assert any(x is True for x in data[field]), f"{field} should have some True values"
+        assert any(x is False for x in data[field]), f"{field} should have some False values"

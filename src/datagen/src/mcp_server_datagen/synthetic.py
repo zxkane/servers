@@ -342,6 +342,8 @@ class SyntheticDataGenerator:
                         value = self._generate_faker_value("date_time_this_decade")
                 elif col_type == "category":
                     value = np.random.choice(col_spec["categories"])
+                elif col_type == "boolean":
+                    value = bool(np.random.choice([True, False]))
 
                 result[col_name].append(value)
 
