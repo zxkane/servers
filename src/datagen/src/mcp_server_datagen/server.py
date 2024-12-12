@@ -160,6 +160,62 @@ class DataGenServer:
                 - Numeric data with configurable ranges via NumPy
                 - Related tables with correlated IDs
 
+                Generator Types and Examples:
+                1. NumPy Generator:
+                   ```json
+                   "age": {
+                     "type": "integer",
+                     "generator": "numpy",
+                     "min": 18,
+                     "max": 65
+                   }
+                   ```
+
+                2. Faker Generator:
+                   ```json
+                   "name": {
+                     "type": "first_name",
+                     "generator": "faker"
+                   }
+                   ```
+
+                3. Mimesis Generator:
+                   ```json
+                   "email": {
+                     "type": "email",
+                     "generator": "mimesis"
+                   }
+                   ```
+
+                Special Features:
+                1. ID Prefixes:
+                   ```json
+                   "policy_id": {
+                     "type": "integer",
+                     "generator": "numpy",
+                     "min": 1000,
+                     "max": 9999,
+                     "prefix": "POL-"
+                   }
+                   ```
+
+                2. Correlated IDs (Foreign Keys):
+                   ```json
+                   "customer_id": {
+                     "type": "integer",
+                     "correlated": true
+                   }
+                   ```
+
+                3. Categories with Prefixes:
+                   ```json
+                   "status_code": {
+                     "type": "string",
+                     "prefix": "STATUS-",
+                     "categories": ["ACTIVE", "PENDING", "CLOSED"]
+                   }
+                   ```
+
                 When using the 'faker' generator, you must specify one of the supported faker types in the 'type' field:
                 - Personal: first_name, last_name, email, phone_number, address
                 - Dates: date_of_birth, date_this_year, date_this_decade
@@ -238,16 +294,32 @@ class DataGenServer:
                 description="""Generate insurance-related data tables using default schemas.
 
                 Generates three tables with realistic insurance data:
-                - customers: Customer information (names, contact details, etc.)
-                - policies: Insurance policy details with proper ID prefixes
-                - claims: Claims data with relationships to policies
+                1. Customers Table:
+                   - IDs: Unique integer IDs (10000-99999)
+                   - Personal: Names, email, phone, address (using faker)
+                   - Numeric: Age (18-100), credit score (300-850)
+                   - Status: Boolean active flag
 
-                All tables maintain referential integrity and include:
-                - Customers: IDs, names, contact info, credit scores
-                - Policies: IDs with prefixes, types, dates, premiums, coverage
-                - Claims: IDs, dates, types, amounts, status updates
+                2. Policies Table:
+                   - IDs: Prefixed IDs (e.g., "POL-2024-123456")
+                   - References: Correlated customer_ids
+                   - Categories: Auto, Home, Life, Health
+                   - Dates: Start dates within current year
+                   - Numeric: Premium ($500-$5000), deductible ($250-$2000)
+                   - Coverage: $50K-$1M range
+                   - Status: Active, Pending, Expired, Cancelled
 
-                The data is generated using predefined schemas optimized for insurance scenarios.""",
+                3. Claims Table:
+                   - IDs: 6-digit claim numbers
+                   - References: Correlated policy_ids (with prefix)
+                   - Dates: Filing dates within current year
+                   - Amounts: $100-$50,000 range
+                   - Status: Filed, Under Review, Approved, Denied
+                   - Details: Generated claim descriptions
+
+                All tables maintain referential integrity and use appropriate
+                generators (numpy for numeric, faker for personal data) with
+                realistic value ranges and categories.""",
                 inputSchema={
                     "type": "object",
                     "properties": {

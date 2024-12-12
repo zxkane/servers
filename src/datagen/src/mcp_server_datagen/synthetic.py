@@ -1,4 +1,9 @@
-"""Synthetic data generation using numpy and faker."""
+"""Synthetic data generation using numpy and faker.
+
+This module provides functionality for generating synthetic data using multiple
+generator libraries including numpy, faker, and mimesis. It supports various
+data types, ID generation with prefixes, and table relationships.
+"""
 
 from datetime import datetime, date
 import numpy as np
@@ -39,10 +44,32 @@ DEFAULT_CLAIMS_SCHEMA = {
 
 
 class SyntheticDataGenerator:
-    """Handles synthetic data generation."""
+    """Handles synthetic data generation with support for multiple generators.
+
+    Features:
+    - Multiple generator types (numpy, faker, mimesis)
+    - Automatic ID generation and correlation
+    - Prefix support for IDs
+    - JSON serialization handling
+
+    Generator Types:
+    - numpy: For numeric and categorical data
+    - faker: For realistic personal/business data
+    - mimesis: Alternative to faker
+
+    Special Features:
+    - prefix: Add prefixes to generated IDs
+    - correlated: Generate IDs that reference other tables
+    - type mapping: Automatic conversion between generator types
+    - JSON serialization: Handles numpy type conversion
+    """
 
     def __init__(self):
-        """Initialize the synthetic data generator."""
+        """Initialize the synthetic data generator.
+
+        Sets up faker and mimesis instances and initializes tracking for
+        generated IDs and table relationships.
+        """
         self.faker = Faker()
         self.mimesis = Generic()
         # Store generated IDs for relationships
@@ -56,7 +83,21 @@ class SyntheticDataGenerator:
         }
 
     def _ensure_json_serializable(self, value: Any) -> Any:
-        """Convert value to JSON serializable type."""
+        """Convert value to JSON serializable type.
+
+        Args:
+            value: Any value that needs to be JSON serializable
+
+        Returns:
+            The value converted to a JSON serializable type
+
+        Handles:
+            - numpy integer types
+            - numpy float types
+            - numpy boolean types
+            - datetime objects
+            - string conversion
+        """
         if isinstance(value, (np.integer, np.floating)):
             return value.item()
         elif isinstance(value, np.bool_):
@@ -68,7 +109,37 @@ class SyntheticDataGenerator:
         return value
 
     def _map_type_to_generator(self, col_name: str, spec: Dict[str, Any]) -> Callable[[], Any]:
-        """Map a column specification to a generator function."""
+        """Map a column specification to a generator function.
+
+        Args:
+            col_name: Name of the column being generated
+            spec: Column specification dictionary containing type and generator info
+
+        Returns:
+            A callable that generates values according to the specification
+
+        Generator Types:
+            - numpy: Numeric and categorical data with min/max ranges
+            - faker: Realistic personal and business data
+            - mimesis: Alternative personal data generation
+
+        Special Features:
+            - Prefix support for string and ID fields
+            - Correlated ID generation for relationships
+            - Category-based generation for enums
+            - Type-specific value ranges
+
+        Example:
+            >>> spec = {
+            ...     "type": "integer",
+            ...     "generator": "numpy",
+            ...     "min": 1,
+            ...     "max": 100,
+            ...     "prefix": "ID-"
+            ... }
+            >>> generator = self._map_type_to_generator("id", spec)
+            >>> value = generator()  # Returns "ID-42" (example)
+        """
         data_type = spec["type"]
         generator = spec.get("generator", None)
 
@@ -139,7 +210,22 @@ class SyntheticDataGenerator:
             raise ValueError(f"Unsupported data type: {data_type}")
 
     def _map_faker_type(self, data_type: str) -> Any:
-        """Map a data type to a faker method."""
+        """Map a data type to a faker method.
+
+        Args:
+            data_type: The type of data to generate (e.g., "string", "email")
+
+        Returns:
+            A callable faker method for generating the specified data type
+
+        Features:
+            - Supports direct faker method calls (e.g., "faker.name")
+            - Maps common data types to faker methods
+            - Fallback to text generation for unsupported types
+
+        Raises:
+            ValueError: If the specified faker type is unsupported
+        """
         # Handle faker.method format
         if data_type.startswith("faker."):
             method = data_type.split(".", 1)[1]
@@ -174,7 +260,22 @@ class SyntheticDataGenerator:
 
 
     def _generate_mimesis_value(self, generator: str) -> Any:
-        """Generate a value using mimesis."""
+        """Generate a value using mimesis.
+
+        Args:
+            generator: String specifying the mimesis generator method
+                      Format: "mimesis.provider.method" or "method"
+
+        Returns:
+            Generated value from mimesis
+
+        Raises:
+            ValueError: If the specified generator method is invalid
+
+        Example:
+            >>> value = self._generate_mimesis_value("mimesis.person.full_name")
+            >>> print(value)  # "John Doe"
+        """
         if "." in generator:
             methods = generator.split(".")
             obj = self.mimesis
@@ -188,7 +289,30 @@ class SyntheticDataGenerator:
         return getattr(self.mimesis, generator)()
 
     def _generate_unique_id(self, table_name: str, spec: Dict[str, Any]) -> Union[int, str]:
-        """Generate a unique ID for a table."""
+        """Generate a unique ID for a table.
+
+        Args:
+            table_name: Name of the table requiring the ID
+            spec: Specification for ID generation including:
+                - type: "integer" or "string"
+                - min: Minimum value for range
+                - max: Maximum value for range
+                - prefix: Optional prefix for generated IDs
+
+        Returns:
+            A unique ID (integer or string with prefix)
+
+        Features:
+            - Ensures uniqueness within table scope
+            - Supports integer and string ID formats
+            - Optional prefix support (e.g., "CUST-", "POL-")
+            - Configurable value ranges
+            - Built-in duplicate prevention
+
+        Raises:
+            ValueError: If unable to generate unique ID after max attempts
+                      or if ID type is unsupported
+        """
         id_type = spec.get("type", "integer")
         min_val = spec.get("min", 1)
         max_val = spec.get("max", 1000000)
@@ -218,7 +342,29 @@ class SyntheticDataGenerator:
         raise ValueError(f"Failed to generate unique ID for table {table_name} after {max_attempts} attempts")
 
     def _generate_correlated_id(self, parent_table: str) -> Union[int, str]:
-        """Generate a correlated ID from a parent table."""
+        """Generate a correlated ID from a parent table.
+
+        Args:
+            parent_table: Name of the table containing the parent IDs
+
+        Returns:
+            An ID from the parent table's generated IDs
+
+        Features:
+            - Maintains referential integrity between tables
+            - Supports both integer and string ID formats
+            - Preserves ID format including prefixes
+            - Random selection from existing parent IDs
+            - Handles special cases (policies, customers, claims)
+
+        Raises:
+            ValueError: If no IDs are available in parent table
+                      or if parent table doesn't exist
+
+        Example:
+            >>> generator._generate_correlated_id("customers")
+            'CUST-1234'  # Returns existing customer ID
+        """
         if not self._generated_ids.get(parent_table):
             raise ValueError(f"No IDs available for parent table {parent_table}")
 
@@ -229,7 +375,33 @@ class SyntheticDataGenerator:
         return np.random.choice(parent_ids)
 
     def _extract_parent_table(self, col_name: str) -> str:
-        """Extract parent table name from column name."""
+        """Extract parent table name from column name.
+
+        Args:
+            col_name: Name of the column (usually ending in '_id')
+
+        Returns:
+            Name of the parent table (pluralized)
+
+        Features:
+            - Special case handling:
+                - policy_id -> policies
+                - customer_id -> customers
+                - claim_id -> claims
+            - General case:
+                - Removes '_id' suffix
+                - Adds 's' for pluralization
+            - Smart pluralization rules
+
+        Example:
+            >>> generator._extract_parent_table("customer_id")
+            'customers'
+            >>> generator._extract_parent_table("policy_id")
+            'policies'
+
+        Raises:
+            ValueError: If column name format is invalid for extraction
+        """
         # Handle special cases first
         if col_name == "policy_id":
             return "policies"
@@ -247,7 +419,29 @@ class SyntheticDataGenerator:
         raise ValueError(f"Invalid column name for parent table extraction: {col_name}")
 
     def _ensure_parent_table_ids(self, parent_table: str, rows: int) -> None:
-        """Ensure parent table has generated IDs."""
+        """Ensure parent table has generated IDs.
+
+        Args:
+            parent_table: Name of the parent table
+            rows: Number of rows needed for relationships
+
+        Features:
+            - Automatic schema detection for parent tables
+            - Smart ID field name resolution:
+                - Handles singular_id format (customer_id)
+                - Handles table_id format (customers_id)
+                - Special cases for policies, customers, claims
+            - Generates required number of unique IDs
+            - Maintains ID format consistency
+
+        Raises:
+            ValueError: If no schema found for parent table
+                      or if no ID field found in schema
+
+        Example:
+            >>> generator._ensure_parent_table_ids("customers", 1000)
+            # Generates 1000 unique customer IDs for relationships
+        """
         if not self._generated_ids.get(parent_table):
             # Get the schema for the parent table
             if parent_table not in self.default_schemas:
@@ -271,7 +465,15 @@ class SyntheticDataGenerator:
             self._generated_ids[parent_table] = {generator() for _ in range(rows)}  # Use set comprehension
 
     def _clear_generated_ids(self):
-        """Clear all generated IDs."""
+        """Clear all generated IDs.
+
+        Resets the internal tracking of generated IDs across all tables.
+        This is useful when:
+        - Starting a new generation session
+        - Cleaning up after error conditions
+        - Resetting state for new table relationships
+        - Freeing memory after large generations
+        """
         self._generated_ids = {}
 
     async def generate_synthetic_data(
@@ -280,7 +482,31 @@ class SyntheticDataGenerator:
         schema: Dict[str, Dict[str, Any]],
         rows: int
     ) -> Dict[str, List[Any]]:
-        """Generate synthetic data for a table."""
+        """Generate synthetic data for a table.
+
+        Args:
+            table_name: Name of the table to generate data for
+            schema: Schema definition for the table's columns
+            rows: Number of rows to generate
+
+        Returns:
+            Dictionary mapping column names to lists of generated values
+
+        Features:
+            - Two-pass generation for handling relationships
+            - Automatic ID generation for parent tables
+            - Correlated ID generation for child tables
+            - JSON serialization of all values
+            - Support for all generator types
+
+        Example:
+            >>> schema = {
+            ...     "id": {"type": "integer", "min": 1, "max": 100},
+            ...     "name": {"type": "string", "generator": "faker"},
+            ...     "parent_id": {"type": "integer", "correlated": true}
+            ... }
+            >>> data = await generator.generate_synthetic_data("table", schema, 10)
+        """
         data: Dict[str, List[Any]] = {}
 
         # If this is a parent table, ensure we generate IDs first
